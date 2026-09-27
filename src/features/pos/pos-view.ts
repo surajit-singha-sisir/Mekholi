@@ -1129,6 +1129,15 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
           // keeps the tenders the cashier already entered.
           await bankSale(payments, { invoice: true })
         },
+        // The khata path exists only when the sale has a name on it — the
+        // server refuses an anonymous due (057), so the dialog never offers
+        // one. Same bankSale: `complete_sale` books the underpayment as
+        // PARTIALLY_PAID and the balance trigger writes it in the ledger.
+        onDue: cart.state.cart.customerId
+          ? async (payments) => {
+              await bankSale(payments, { invoice: true })
+            }
+          : undefined,
       })
     })()
   }

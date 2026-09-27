@@ -13,14 +13,24 @@
 import { h, mount } from '../../components/ui/h'
 import { button, spinner } from '../../components/ui/button'
 import { badge, card, emptyState } from '../../components/ui/card'
-import { input, field, searchInput } from '../../components/ui/input'
+import { input, field, searchInput, select } from '../../components/ui/input'
 import { modal } from '../../components/feedback/modal'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { getRepositories } from '../../app/data'
 import { activeOrganization, can } from '../../app/state/session'
-import { formatMoney, minorToNumber, toMinor } from '../../shared/domain/money'
+import { formatMoney, minor, minorToNumber, parseMinor, type Minor } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
 import type { CustomerRow } from '../../shared/types/records'
+
+/**
+ * `CustomerRow` carries money as the raw numeric strings Postgres sends
+ * ("150.00" — major units). `parseMinor` is the honest conversion; the old
+ * `toMinor(Number(...))` read major as minor and was off by 100× — invisible
+ * only while nothing ever wrote a balance.
+ */
+function asMinor(value: string): Minor {
+  return parseMinor(value) ?? minor(0)
+}
 
 export interface CustomersViewOptions {
   onNavigate?: (path: string) => void
@@ -115,11 +125,11 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
             h(
               'div',
               { class: 'flex shrink-0 flex-col items-end gap-1' },
-              minorToNumber(toMinor(Number(row.balance))) > 0
-                ? badge(formatMoney(toMinor(Number(row.balance)), { currency }), { tone: 'warning' })
+              minorToNumber(asMinor(row.balance)) > 0
+                ? badge(formatMoney(asMinor(row.balance), { currency }), { tone: 'warning' })
                 : null,
-              minorToNumber(toMinor(Number(row.store_credit))) > 0
-                ? badge(`credit ${formatMoney(toMinor(Number(row.store_credit)), { currency })}`, { tone: 'success' })
+              minorToNumber(asMinor(row.store_credit)) > 0
+                ? badge(`credit ${formatMoney(asMinor(row.store_credit), { currency })}`, { tone: 'success' })
                 : null
             )
           )
@@ -202,6 +212,110 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
     })
   }
 
+  /**
+   * The collection half of the khata: money in against what the customer
+   * owes. The amount opens pre-filled with the full due because "cleared it
+   * all" is the common case; a part payment is one edit. Allocation to
+   * invoices (oldest first) is the server's job — the dialog only asks the
+   * three questions a shopkeeper actually has: how much, how, any slip
+   * number.
+   */
+  async function openCollect(customer: CustomerRow): Promise<void> {
+    const owed = asMinor(customer.balance)
+
+    let methods
+    try {
+      methods = await repos.catalog.listPaymentMethods()
+    } catch (error) {
+      toastError(translateError(error).message)
+      return
+    }
+    if (methods.length === 0) {
+      toastError('This shop has no payment methods configured.')
+      return
+    }
+
+    const amountInput = input({
+      id: 'collect-amount',
+      type: 'text',
+      inputmode: 'decimal',
+      value: (minorToNumber(owed) / 100).toFixed(2),
+    })
+    const methodSelect = select({
+      id: 'collect-method',
+      value: methods[0]!.id,
+      options: methods.map((m) => ({ value: m.id, label: m.name })),
+    })
+    const referenceInput = input({ id: 'collect-reference', placeholder: 'Receipt or transaction no. (optional)' })
+    const errorSlot = h('p', { class: 'hidden text-sm text-danger', role: 'alert' })
+    const submit = button('Collect', {
+      variant: 'primary',
+      fullWidth: true,
+      size: 'lg',
+      icon: 'payments',
+      onClick: () => void submitCollect(),
+    })
+
+    const dialog = modal({
+      title: `Collect from ${customer.name}`,
+      subtitle: `Owes ${formatMoney(owed, { currency })}`,
+      iconName: 'payments',
+      size: 'sm',
+      footer: [h('div', { class: 'w-full' }, submit)],
+    })
+
+    mount(
+      dialog.body,
+      h(
+        'div',
+        { class: 'space-y-4' },
+        field('Amount received', amountInput, { required: true }),
+        field('Paid by', methodSelect),
+        field('Reference', referenceInput),
+        errorSlot
+      )
+    )
+    amountInput.focus()
+    amountInput.select()
+
+    function showError(message: string): void {
+      errorSlot.textContent = message
+      errorSlot.classList.remove('hidden')
+    }
+
+    async function submitCollect(): Promise<void> {
+      const amount = parseMinor(amountInput.value)
+      if (amount === null || minorToNumber(amount) <= 0) {
+        showError('Enter the amount received.')
+        return
+      }
+      if (minorToNumber(amount) > minorToNumber(owed)) {
+        // The server refuses this too; saying it here saves a round trip.
+        showError(`That is more than the ${formatMoney(owed, { currency })} owed. Money held for later belongs in store credit, not the due book.`)
+        return
+      }
+      submit.disabled = true
+      try {
+        const result = await repos.customers.collectPayment({
+          customerId: customer.id,
+          amount,
+          methodId: methodSelect.value,
+          reference: referenceInput.value.trim() || null,
+        })
+        dialog.close()
+        toastSuccess(
+          minorToNumber(result.balance) > 0
+            ? `Collected ${formatMoney(amount, { currency })} — ${formatMoney(result.balance, { currency })} still due.`
+            : `Collected ${formatMoney(amount, { currency })} — all settled.`
+        )
+        void reload()
+      } catch (error) {
+        submit.disabled = false
+        showError(translateError(error).message)
+      }
+    }
+  }
+
   async function openDetail(row: CustomerRow): Promise<void> {
     const dialog = modal({ title: row.name, size: 'md', iconName: 'group' })
     mount(dialog.body, h('div', { class: 'flex justify-center p-6' }, spinner()))
@@ -225,19 +339,22 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
               'div',
               { class: 'rounded-lg border border-border p-3' },
               h('p', { class: 'text-xs text-content-muted', text: 'Owes' }),
-              h('p', { class: 'text-lg font-semibold tabular-nums text-content', text: formatMoney(toMinor(Number(current.balance)), { currency }) })
+              h('p', { class: 'text-lg font-semibold tabular-nums text-content', text: formatMoney(asMinor(current.balance), { currency }) })
             ),
             h(
               'div',
               { class: 'rounded-lg border border-border p-3' },
               h('p', { class: 'text-xs text-content-muted', text: 'Store credit' }),
-              h('p', { class: 'text-lg font-semibold tabular-nums text-success', text: formatMoney(toMinor(Number(current.store_credit)), { currency }) })
+              h('p', { class: 'text-lg font-semibold tabular-nums text-success', text: formatMoney(asMinor(current.store_credit), { currency }) })
             )
           ),
           h('p', { class: 'text-sm text-content-muted', text: [current.phone, current.email, current.address].filter(Boolean).join(' · ') || 'No contact details' }),
           h(
             'div',
             { class: 'flex flex-wrap gap-2' },
+            minorToNumber(asMinor(current.balance)) > 0 && can('sales.create')
+              ? button('Collect due', { variant: 'primary', icon: 'payments', onClick: () => { dialog.close(); void openCollect(current) } })
+              : null,
             can('customers.edit') ? button('Edit', { variant: 'outline', icon: 'edit', onClick: () => { dialog.close(); openForm(current) } }) : null,
             can('sales.view') ? button('Their sales', { variant: 'secondary', icon: 'receipt_long', onClick: () => { dialog.close(); options.onNavigate?.('/sales') } }) : null
           ),
@@ -258,7 +375,7 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
                         h('p', { class: 'text-xs text-content-muted', text: new Date(sale.created_at).toLocaleDateString() })
                       ),
                       h('div', { class: 'shrink-0 text-right' },
-                        h('p', { class: 'text-sm tabular-nums text-content', text: formatMoney(toMinor(Number(sale.total)), { currency }) }),
+                        h('p', { class: 'text-sm tabular-nums text-content', text: formatMoney(asMinor(sale.total), { currency }) }),
                         sale.status !== 'COMPLETED'
                           ? h('p', { class: 'text-xs text-content-muted', text: sale.status.replace(/_/g, ' ').toLowerCase() })
                           : null

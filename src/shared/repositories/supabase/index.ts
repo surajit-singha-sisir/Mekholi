@@ -1355,6 +1355,24 @@ function createCustomers(
       if (!customer) throw new Error('The customer was not updated')
       return customer
     },
+
+    async collectPayment(input) {
+      const result = unwrap(
+        await client.rpc('collect_customer_payment', {
+          p_customer_id: input.customerId,
+          p_amount: minorToNumber(input.amount),
+          p_method_id: input.methodId,
+          p_sale_id: input.saleId ?? null,
+          p_reference: input.reference ?? null,
+          p_note: null,
+        })
+      ) as { collected: string | number; customer_balance: string | number; sales_settled: number }
+      return {
+        collected: toMinor(result.collected),
+        balance: toMinor(result.customer_balance),
+        settledSales: result.sales_settled,
+      }
+    },
   }
 }
 

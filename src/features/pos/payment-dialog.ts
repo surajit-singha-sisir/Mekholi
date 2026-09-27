@@ -31,10 +31,17 @@ export interface PaymentDialogOptions {
   methods: PaymentMethod[]
   currency: string
   onSubmit: (payments: PaymentEntry[]) => Promise<void> | void
+  /**
+   * The khata path: complete the sale with whatever has been tendered — even
+   * nothing — and book the remainder against the customer. Offered only when
+   * a customer is on the sale, because the database refuses a due with no
+   * name (`credit_sale_needs_customer`, migration 057).
+   */
+  onDue?: ((payments: PaymentEntry[]) => Promise<void> | void) | undefined
 }
 
 export function openPaymentDialog(options: PaymentDialogOptions): { close: () => void } {
-  const { total, methods, currency, onSubmit } = options
+  const { total, methods, currency, onSubmit, onDue } = options
 
   const [firstMethod] = methods
   const payments: PaymentEntry[] = []
@@ -150,6 +157,15 @@ export function openPaymentDialog(options: PaymentDialogOptions): { close: () =>
             `${formatMoney(minor(due - offered), { currency, symbol: false })} left`
           : `Still owed ${formatMoney(due, { currency, symbol: false })}`
     )
+
+    // The khata button describes what it will book, and disappears into
+    // irrelevance (disabled) the moment the tenders cover the total.
+    if (dueButton) {
+      dueButton.disabled = submitting || result.settled
+      dueButton.querySelector('[data-label]')!.textContent = result.settled
+        ? 'Nothing left to owe'
+        : `Keep ${formatMoney(due, { currency, symbol: false })} as due`
+    }
   }
 
   /**
@@ -260,6 +276,38 @@ export function openPaymentDialog(options: PaymentDialogOptions): { close: () =>
     }
   }
 
+  /**
+   * The khata submit: whatever has been tendered is banked, the rest is
+   * written in the customer's name. A tender typed but not yet added is
+   * ignored here for the same reason submit ignores it — the book records
+   * money received, not money hovering over the drawer.
+   */
+  async function submitDue(): Promise<void> {
+    if (submitting || !onDue || !dueButton) return
+    if (settlement(total, payments).settled) return
+    submitting = true
+    dueButton.disabled = true
+    submitButton.disabled = true
+    try {
+      await onDue([...payments])
+      dialog.close()
+    } catch (error) {
+      submitting = false
+      submitButton.disabled = false
+      dueButton.disabled = false
+      showError(translateError(error).message)
+    }
+  }
+
+  const dueButton = onDue
+    ? button('Keep as due', {
+        variant: 'outline',
+        fullWidth: true,
+        icon: 'menu_book',
+        onClick: () => void submitDue(),
+      })
+    : null
+
   const exactButton = button('Exact', {
     size: 'sm',
     variant: 'outline',
@@ -304,6 +352,7 @@ export function openPaymentDialog(options: PaymentDialogOptions): { close: () =>
       noteHint,
       errorSlot,
       submitButton,
+      dueButton,
 
       h('p', {
         class: 'text-xs text-content-subtle text-center',

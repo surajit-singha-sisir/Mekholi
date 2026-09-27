@@ -17,8 +17,13 @@ import type { PluginManifest } from '../../shared/registry/plugin-types'
 
 export const LABEL_PRINTING_ID = 'label-printing'
 
-/** Choose products and print their barcode labels. */
-export const LABELS_PRINT = 'label-printing.print'
+/**
+ * Gated on the core catalogue permission rather than a key of its own, like
+ * the other two hardware plugins (056): whoever may see the products may put
+ * their SKUs on paper. Inventing `label-printing.print` would add a key every
+ * role has to be taught for no decision it enables.
+ */
+export const LABELS_PRINT = 'products.view'
 
 export const labelPrintingManifest: PluginManifest = {
   id: 'label-printing',
@@ -33,13 +38,7 @@ export const labelPrintingManifest: PluginManifest = {
     priceBdt: 0,
   },
   icon: 'label',
-  permissions: [
-    {
-      key: 'label-printing.print',
-      label: 'Print barcode labels',
-      group: 'inventory',
-      description: 'Choose products and print sheets or rolls of their barcode labels.',
-    },
-  ],
+  // No permissions of its own — see LABELS_PRINT above.
+  permissions: [],
   dataOwnership: 'transient',
 }

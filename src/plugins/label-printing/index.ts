@@ -24,15 +24,6 @@ export const labelPrintingPlugin: Plugin = {
   ...(labelPrintingManifest.icon ? { icon: labelPrintingManifest.icon } : {}),
 
   register(api) {
-    for (const permission of labelPrintingManifest.permissions ?? []) {
-      api.registerPermission({
-        key: permission.key,
-        label: permission.label,
-        group: permission.group,
-        ...(permission.description ? { description: permission.description } : {}),
-      })
-    }
-
     api.registerNav({
       id: 'label-printing',
       label: 'Labels',

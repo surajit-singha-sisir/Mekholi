@@ -1014,6 +1014,41 @@
           "required": true
         }
       ]
+    },
+    "collect_customer_payment": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_customer_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_amount",
+          "type": "numeric",
+          "required": true
+        },
+        {
+          "name": "p_method_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_sale_id",
+          "type": "uuid",
+          "required": false
+        },
+        {
+          "name": "p_reference",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_note",
+          "type": "text",
+          "required": false
+        }
+      ]
     }
   },
   "relations": {

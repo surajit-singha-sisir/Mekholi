@@ -222,6 +222,19 @@ export interface CustomerRepository {
   /** Spec §19: name and phone are enough. Everything else is optional. */
   create(draft: CustomerDraft): Promise<CustomerRow>
   update(id: string, draft: Partial<CustomerDraft>): Promise<CustomerRow>
+  /**
+   * Money in against what this customer owes — the khata collection. Maps to
+   * `collect_customer_payment`: without a `saleId` the amount pays the open
+   * sales oldest first; with one it pays that invoice alone. Collecting more
+   * than is owed is refused by the database, not the dialog.
+   */
+  collectPayment(input: {
+    customerId: string
+    amount: Minor
+    methodId: string
+    saleId?: string | null
+    reference?: string | null
+  }): Promise<{ collected: Minor; balance: Minor; settledSales: number }>
 }
 
 export interface RegisterRepository {
