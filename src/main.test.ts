@@ -69,6 +69,7 @@ describe('application bootstrap', () => {
       'label-printing',
       'loyalty',
       'loyalty-lite',
+      'multi-currency',
       'printer-setup',
       'serial-numbers',
       'variants',

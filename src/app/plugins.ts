@@ -30,6 +30,7 @@ import { branchManifest } from '../plugins/branch/manifest'
 import { labelPrintingManifest } from '../plugins/label-printing/manifest'
 import { loyaltyManifest } from '../plugins/loyalty/manifest'
 import { loyaltyLiteManifest } from '../plugins/loyalty-lite/manifest'
+import { multiCurrencyManifest } from '../plugins/multi-currency/manifest'
 import { printerSetupManifest } from '../plugins/printer-setup/manifest'
 import { serialNumbersManifest } from '../plugins/serial-numbers/manifest'
 import { variantsManifest } from '../plugins/variants/manifest'
@@ -164,6 +165,10 @@ export const SHIPPED_PLUGINS: readonly ShippedPlugin[] = [
   {
     manifest: loyaltyLiteManifest,
     load: async () => (await import('../plugins/loyalty-lite')).loyaltyLitePlugin,
+  },
+  {
+    manifest: multiCurrencyManifest,
+    load: async () => (await import('../plugins/multi-currency')).multiCurrencyPlugin,
   },
   {
     manifest: printerSetupManifest,

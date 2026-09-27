@@ -118,7 +118,8 @@ export const en = {
   'settings.shopDetails': 'Shop details',
   'settings.shopName': 'Shop name',
   'settings.currency': 'Currency',
-  'settings.currencyHint': 'ISO 4217 code, for example BDT',
+  'settings.currencyHint':
+    'The currency the books are kept in. To read amounts converted into another currency, enable the Multi-Currency plugin.',
   'settings.timezone': 'Timezone',
   'settings.language': 'Language',
   'settings.languageHint': 'Changes the app language straight away, for everyone in this shop.',
@@ -244,7 +245,8 @@ export const bn: Partial<Record<StringKey, string>> = {
   'settings.shopDetails': 'দোকানের তথ্য',
   'settings.shopName': 'দোকানের নাম',
   'settings.currency': 'মুদ্রা',
-  'settings.currencyHint': 'ISO 4217 কোড, যেমন BDT',
+  'settings.currencyHint':
+    'হিসাব যে মুদ্রায় রাখা হয়। অন্য মুদ্রায় রূপান্তর করে দেখতে মাল্টি-কারেন্সি প্লাগইন চালু করুন।',
   'settings.timezone': 'সময় অঞ্চল',
   'settings.language': 'ভাষা',
   'settings.languageHint': 'অ্যাপের ভাষা সঙ্গে সঙ্গে বদলে যাবে, এই দোকানের সবার জন্য।',

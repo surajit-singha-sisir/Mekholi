@@ -6,8 +6,13 @@
  * arriving from a barcode scale as `1.250`.
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
+  convertToDisplayMinor,
+  displayConversion,
+  resetDisplayConversionProvider,
+  setDisplayConversionProvider,
+  type DisplayConversion,
   formatMoney,
   formatQty,
   groupIndian,
@@ -164,5 +169,57 @@ describe('brand separation', () => {
     // This line exists to be a compile error if the brands are ever removed:
     // money and quantity must not be interchangeable.
     expect(price * qty).toBe(75000000)
+  })
+})
+
+// ── Display conversion (multi-currency plugin seam) ───────────────────────
+
+const usd = (rate: number): DisplayConversion => ({ code: 'USD', decimals: 2, rate })
+
+describe('display conversion', () => {
+  afterEach(() => resetDisplayConversionProvider())
+
+  it('is off until someone pushes a provider — money formats as before', () => {
+    expect(displayConversion()).toBeNull()
+    expect(formatMoney(minor(140000), { digits: 'latin' })).toContain('1,400.00')
+  })
+
+  it('converts the shop’s own example: ৳1,400 at 1 USD = 122.50 BDT', () => {
+    setDisplayConversionProvider(() => usd(122.5))
+    // 1400 / 122.5 = 11.4285… → $11.43, rounded once, half away from zero.
+    expect(formatMoney(minor(140000), { currency: 'BDT', digits: 'latin' })).toBe('$\u202f11.43')
+  })
+
+  it('keeps the sign and rounds like Postgres on refund lines', () => {
+    setDisplayConversionProvider(() => usd(122.5))
+    expect(formatMoney(minor(-140000), { currency: 'BDT', digits: 'latin' })).toBe('-$\u202f11.43')
+  })
+
+  it('respects the display currency’s own decimals — yen has none', () => {
+    setDisplayConversionProvider(() => ({ code: 'JPY', decimals: 0, rate: 0.85 }))
+    // 1400 / 0.85 = 1647.05… → ¥1,647, no decimal point at all.
+    expect(formatMoney(minor(140000), { currency: 'BDT', digits: 'latin' })).toBe('¥\u202f1,647')
+  })
+
+  it('stays out of machine-bound output when the caller says convert: false', () => {
+    setDisplayConversionProvider(() => usd(122.5))
+    expect(formatMoney(minor(140000), { digits: 'latin', convert: false })).toBe('৳\u202f1,400.00')
+  })
+
+  it('refuses a rate that cannot survive a division', () => {
+    setDisplayConversionProvider(() => usd(0))
+    expect(formatMoney(minor(140000), { digits: 'latin' })).toBe('৳\u202f1,400.00')
+    setDisplayConversionProvider(() => usd(Number.NaN))
+    expect(formatMoney(minor(140000), { digits: 'latin' })).toBe('৳\u202f1,400.00')
+  })
+
+  it('does nothing when display and base are the same currency', () => {
+    setDisplayConversionProvider(() => ({ code: 'BDT', decimals: 2, rate: 1 }))
+    expect(formatMoney(minor(140000), { currency: 'BDT', digits: 'latin' })).toBe('৳\u202f1,400.00')
+  })
+
+  it('exposes the raw arithmetic for screens that explain themselves', () => {
+    expect(convertToDisplayMinor(minor(140000), usd(122.5))).toBe(1143)
+    expect(convertToDisplayMinor(minor(140000), { code: 'KWD', decimals: 3, rate: 400 })).toBe(3500)
   })
 })

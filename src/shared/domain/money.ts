@@ -126,6 +126,14 @@ export interface MoneyFormatOptions {
    * reading Bangla, or the round trip loses the number.
    */
   digits?: 'locale' | 'latin'
+  /**
+   * Whether the display conversion (multi-currency plugin) may apply.
+   * Default true — the whole point of a display currency is that every
+   * amount the eye meets is in it. Pass false where the number must stay
+   * in base currency: machine-bound output, or a field the user types
+   * base-currency amounts back into.
+   */
+  convert?: boolean
 }
 
 /**
@@ -153,6 +161,63 @@ export function moneyLocale(): string {
 }
 
 /**
+ * A display conversion: the shop keeps its books in one currency but wants
+ * its *eyes* in another — ৳1,400 on the ledger reading as $11.43 on the
+ * screen. The database never hears about this; every stored value stays in
+ * base-currency minor units, so switching back (or fixing a wrong rate) is
+ * lossless.
+ *
+ * The same push-provider inversion as the locale above: domain code cannot
+ * import a plugin, so the multi-currency plugin pushes a provider in here
+ * and `formatMoney` asks it. Untouched, the answer is `null` and money
+ * formats exactly as before — a shop without the plugin pays nothing.
+ */
+export interface DisplayConversion {
+  /** ISO 4217 code of the currency the screen should show. */
+  code: string
+  /** Minor digits of that currency — 2 for USD, 0 for JPY, 3 for KWD. */
+  decimals: number
+  /**
+   * How many base **major** units buy one display **major** unit.
+   * `1 USD = 122.50 BDT` is `rate: 122.5` with BDT as base.
+   */
+  rate: number
+}
+
+let displayConversionProvider: () => DisplayConversion | null = () => null
+
+export function setDisplayConversionProvider(provider: () => DisplayConversion | null): void {
+  displayConversionProvider = provider
+}
+
+/** Back to no conversion — called by the plugin's dispose and by tests. */
+export function resetDisplayConversionProvider(): void {
+  displayConversionProvider = () => null
+}
+
+export function displayConversion(): DisplayConversion | null {
+  return displayConversionProvider()
+}
+
+/**
+ * Base minor units → display minor units, rounding once, Postgres-style.
+ * Exposed so a screen can show the arithmetic it is about to apply
+ * (`৳1,400 ÷ 122.50 = $11.43`) with exactly the digits formatMoney will use.
+ */
+export function convertToDisplayMinor(value: Minor, conversion: DisplayConversion): number {
+  const scale = 10 ** conversion.decimals
+  return roundHalfAway(((value / 100) * scale) / conversion.rate)
+}
+
+/** A conversion is usable only when its rate can survive a division. */
+function usableConversion(conv: DisplayConversion | null, baseCode: string): DisplayConversion | null {
+  if (!conv) return null
+  if (!Number.isFinite(conv.rate) || conv.rate <= 0) return null
+  if (conv.code.toUpperCase() === baseCode.toUpperCase()) return null
+  return conv
+}
+
+/**
  * Format minor units for display: `৳1,250.00`.
  *
  * Grouping is applied by hand rather than via `Intl.NumberFormat` because the
@@ -162,14 +227,24 @@ export function moneyLocale(): string {
  * stays correct for other currencies.
  */
 export function formatMoney(value: Minor, options: MoneyFormatOptions = {}): string {
-  const { currency = 'BDT', locale = localeProvider(), symbol = true, digits = 'locale' } = options
-  const sign = value < 0 ? '-' : ''
-  const abs = Math.abs(value)
-  const whole = Math.trunc(abs / 100)
-  const frac = String(abs % 100).padStart(2, '0')
+  const { currency = 'BDT', locale = localeProvider(), symbol = true, digits = 'locale', convert = true } = options
+  const conversion = usableConversion(convert ? displayConversionProvider() : null, currency)
+
+  // What the eye sees: either the base minor units as stored (2 decimals,
+  // always — every column is numeric(14,2)), or the converted count of the
+  // display currency's own minor units, whose decimals it dictates.
+  const shownCode = conversion ? conversion.code : currency
+  const decimals = conversion ? conversion.decimals : 2
+  const shownMinor = conversion ? convertToDisplayMinor(value, conversion) : value
+
+  const sign = shownMinor < 0 ? '-' : ''
+  const abs = Math.abs(shownMinor)
+  const scale = 10 ** decimals
+  const whole = Math.trunc(abs / scale)
   const grouped = groupIndian(whole)
-  const prefix = symbol ? `${currencySymbol(currency, locale)}${NON_BREAKING_THIN_SPACE}` : ''
-  const body = digits === 'latin' ? `${grouped}.${frac}` : localizeDigits(`${grouped}.${frac}`, locale)
+  const raw = decimals > 0 ? `${grouped}.${String(abs % scale).padStart(decimals, '0')}` : grouped
+  const prefix = symbol ? `${currencySymbol(shownCode, locale)}${NON_BREAKING_THIN_SPACE}` : ''
+  const body = digits === 'latin' ? raw : localizeDigits(raw, locale)
   return `${sign}${prefix}${body}`
 }
 
