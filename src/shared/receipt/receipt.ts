@@ -223,8 +223,15 @@ export function renderReceipt(data: ReceiptData, design: InvoiceDesign = DEFAULT
   return h(
     'div',
     { class: 'mekholi-receipt' },
+    // The form names itself. On a Mushak-6.3 the heading is what turns a
+    // till slip into the VAT invoice the buyer is entitled to keep — the
+    // NBR's form number, in both scripts, above the seller's identity.
+    ...(look.mushak
+      ? [h('p', { class: 'center', text: 'মূসক-৬.৩ · VAT Invoice (Mushak-6.3)' })]
+      : []),
     h('h1', { text: design.shopName.trim() || data.shopName }),
     ...look.headerLines.map((line) => h('p', { class: 'center muted', text: line })),
+    ...(look.binNumber ? [h('p', { class: 'center muted', text: `BIN: ${look.binNumber}` })] : []),
     h('p', { class: 'center muted', text: data.invoiceNo }),
     h('p', { class: 'center muted', text: `${data.soldAt} · ${data.status}` }),
     ...(look.showCustomer ? [h('p', { class: 'center muted', text: `Served: ${data.customer}` })] : []),
@@ -240,8 +247,14 @@ export function renderReceipt(data: ReceiptData, design: InvoiceDesign = DEFAULT
       h('tbody', {},
         row('Subtotal', data.subtotal),
         ...(Number(data.discount.replace(/[^0-9.-]/g, '')) > 0 ? [row('Discount', `-${data.discount}`)] : []),
-        ...(Number(data.tax.replace(/[^0-9.-]/g, '')) > 0 ? [row('Tax', data.tax)] : []),
-        row('TOTAL', data.total, true),
+        // A Mushak-6.3 states the VAT even when it is zero — an absent line
+        // reads as an omission on a tax document, where ৳0.00 is an answer.
+        ...(look.mushak
+          ? [row('VAT', data.tax)]
+          : Number(data.tax.replace(/[^0-9.-]/g, '')) > 0
+            ? [row('Tax', data.tax)]
+            : []),
+        row(look.mushak ? 'TOTAL (incl. VAT)' : 'TOTAL', data.total, true),
         row('Paid', data.paid),
         row('Change', data.change)
       )

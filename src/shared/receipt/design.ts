@@ -21,7 +21,7 @@
  * beside the printer it prints on.
  */
 
-export type InvoiceTemplate = 'compact' | 'standard' | 'detailed'
+export type InvoiceTemplate = 'compact' | 'standard' | 'detailed' | 'mushak'
 
 export interface InvoiceDesign {
   template: InvoiceTemplate
@@ -29,6 +29,15 @@ export interface InvoiceDesign {
   shopName: string
   /** Address, phone, VAT number — one per line, printed under the heading. */
   headerLines: string
+  /**
+   * The shop's BIN (Business Identification Number — the NBR VAT
+   * registration). Printed as its own line whenever the template prints a
+   * header, because a slip that is asked for a BIN is asked for it every
+   * time; on the Mushak-6.3 template it is part of what makes the document a
+   * VAT invoice at all. Empty means the shop is not VAT-registered, and the
+   * line simply does not print.
+   */
+  binNumber: string
   /** Who the sale was to. Off for a shop that sells to the queue. */
   showCustomer: boolean
   /** Which cashier served it — useful with staff, noise without. */
@@ -47,6 +56,7 @@ export const DEFAULT_INVOICE_DESIGN: InvoiceDesign = {
   template: 'standard',
   shopName: '',
   headerLines: '',
+  binNumber: '',
   showCustomer: true,
   showCashier: false,
   showItemNotes: true,
@@ -72,6 +82,11 @@ export const INVOICE_TEMPLATES: Array<{ value: InvoiceTemplate; label: string; b
     label: 'Detailed',
     blurb: 'Everything: shop address, cashier, per-line notes and looser spacing. For a slip that doubles as a document.',
   },
+  {
+    value: 'mushak',
+    label: 'Mushak-6.3 (VAT)',
+    blurb: 'The NBR VAT invoice: BIN, the VAT amount on every sale, and a heading that names the form. For the VAT-registered shop.',
+  },
 ]
 
 /**
@@ -92,6 +107,11 @@ export function templateRules(template: InvoiceTemplate): {
       return { oneLinePerItem: true, headerLines: false, cashier: false, itemNotes: false, lineHeight: 1.3 }
     case 'detailed':
       return { oneLinePerItem: false, headerLines: true, cashier: true, itemNotes: true, lineHeight: 1.6 }
+    case 'mushak':
+      // The VAT invoice: full seller header, per-line detail, and the notes
+      // plugins print (a batch number belongs on a tax document). The
+      // cashier's name is not part of the form.
+      return { oneLinePerItem: false, headerLines: true, cashier: false, itemNotes: true, lineHeight: 1.45 }
     case 'standard':
     default:
       return { oneLinePerItem: false, headerLines: true, cashier: false, itemNotes: true, lineHeight: 1.45 }
@@ -107,6 +127,10 @@ export function templateRules(template: InvoiceTemplate): {
 export function resolveDesign(design: InvoiceDesign): {
   oneLinePerItem: boolean
   headerLines: string[]
+  /** True when the slip must present itself as a Mushak-6.3 VAT invoice. */
+  mushak: boolean
+  /** Empty when unset, or when the template prints no header at all. */
+  binNumber: string
   showCustomer: boolean
   showCashier: boolean
   showItemNotes: boolean
@@ -118,6 +142,8 @@ export function resolveDesign(design: InvoiceDesign): {
   const rules = templateRules(design.template)
   return {
     oneLinePerItem: rules.oneLinePerItem,
+    mushak: design.template === 'mushak',
+    binNumber: rules.headerLines ? design.binNumber.trim() : '',
     headerLines: rules.headerLines
       ? design.headerLines
           .split('\n')
@@ -138,12 +164,15 @@ export function resolveDesign(design: InvoiceDesign): {
 export function normaliseDesign(value: unknown): InvoiceDesign {
   const raw = (value ?? {}) as Partial<InvoiceDesign>
   const template: InvoiceTemplate =
-    raw.template === 'compact' || raw.template === 'detailed' ? raw.template : 'standard'
+    raw.template === 'compact' || raw.template === 'detailed' || raw.template === 'mushak'
+      ? raw.template
+      : 'standard'
 
   return {
     template,
     shopName: typeof raw.shopName === 'string' ? raw.shopName : DEFAULT_INVOICE_DESIGN.shopName,
     headerLines: typeof raw.headerLines === 'string' ? raw.headerLines : DEFAULT_INVOICE_DESIGN.headerLines,
+    binNumber: typeof raw.binNumber === 'string' ? raw.binNumber : DEFAULT_INVOICE_DESIGN.binNumber,
     showCustomer: typeof raw.showCustomer === 'boolean' ? raw.showCustomer : DEFAULT_INVOICE_DESIGN.showCustomer,
     showCashier: typeof raw.showCashier === 'boolean' ? raw.showCashier : DEFAULT_INVOICE_DESIGN.showCashier,
     showItemNotes: typeof raw.showItemNotes === 'boolean' ? raw.showItemNotes : DEFAULT_INVOICE_DESIGN.showItemNotes,

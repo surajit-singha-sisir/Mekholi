@@ -42,7 +42,7 @@ export function invoiceDesignCard(options: InvoiceDesignOptions): HTMLElement {
   const previewHost = h('div', {
     class: 'overflow-x-auto rounded-lg border border-border bg-white p-3',
   })
-  const templateHost = h('div', { class: 'grid gap-2 sm:grid-cols-3' })
+  const templateHost = h('div', { class: 'grid gap-2 sm:grid-cols-2' })
 
   function persist(patch: Partial<InvoiceDesign>): void {
     design = { ...design, ...patch }
@@ -109,6 +109,13 @@ export function invoiceDesignCard(options: InvoiceDesignOptions): HTMLElement {
   const footerBox = input({ value: design.footerText, placeholder: 'Thank you', maxlength: 60 })
   footerBox.addEventListener('change', () => persist({ footerText: footerBox.value }))
 
+  const binBox = input({
+    value: design.binNumber,
+    placeholder: '0012345678901',
+    maxlength: 20,
+  })
+  binBox.addEventListener('change', () => persist({ binNumber: binBox.value.trim() }))
+
   const scaleBox = select({
     value: String(design.fontScale),
     options: [
@@ -142,7 +149,10 @@ export function invoiceDesignCard(options: InvoiceDesignOptions): HTMLElement {
       ),
 
       field('Under the name', headerBox, {
-        hint: 'Address, phone, VAT number — one per line. Not printed by the Compact template.',
+        hint: 'Address, phone — one per line. Not printed by the Compact template.',
+      }),
+      field('BIN (VAT registration)', binBox, {
+        hint: 'Printed as “BIN: …” under the header. A Mushak-6.3 invoice needs it; leave empty if the shop is not VAT-registered.',
       }),
       field('Last line', footerBox, { hint: 'Leave empty for no footer at all.' }),
 
