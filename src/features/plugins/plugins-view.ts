@@ -525,6 +525,22 @@ export function pluginsView(): HTMLElement {
       if (!ok) return
 
       const result = await repos.plugins.enable(organizationId, entry.key, entry.version)
+
+      // A licence recorded before the shop had a `plugins` row could not be
+      // written then. The row exists now — write it before `syncPlugins()`
+      // replaces this tab's memory with the server's copy, or the trial
+      // would evaporate at the next sign-in.
+      const pending = pluginConfig(entry.key)
+      if (LICENCE_KEY in pending) {
+        try {
+          const saved = await repos.plugins.setConfig(organizationId, entry.key, pending)
+          rememberConfig(entry.key, saved.config)
+        } catch {
+          // Offline or refused: the licence still holds for this session,
+          // and the next subscribe attempt writes it again.
+        }
+      }
+
       await syncPlugins()
       toastSuccess(
         result.migrationsApplied > 0
@@ -570,15 +586,20 @@ export function pluginsView(): HTMLElement {
       ...pluginConfig(entry.key),
       [LICENCE_KEY]: canTrial ? startTrial(pricing) : startSubscription(),
     }
-    try {
-      const saved = await repos.plugins.setConfig(organizationId, entry.key, config)
-      rememberConfig(entry.key, saved.config)
-    } catch {
-      // The shop may not have a `plugins` row yet — the entitlement is still
-      // remembered for this session so the switch-on can proceed, and the
-      // write is retried by the settings save that follows enabling.
-      rememberConfig(entry.key, config)
+    if (entry.installed) {
+      try {
+        const saved = await repos.plugins.setConfig(organizationId, entry.key, config)
+        rememberConfig(entry.key, saved.config)
+        return true
+      } catch {
+        // Fall through: remembered below, re-written after switch-on.
+      }
     }
+    // No `plugins` row exists until `plugin_enable` runs, and writing config
+    // before then is a guaranteed `plugin_not_installed` (a 400 in the
+    // network tab). So the entitlement is remembered for this session, and
+    // `switchOn` writes it for real the moment the row exists.
+    rememberConfig(entry.key, config)
     return true
   }
 
