@@ -16,6 +16,7 @@ import { openQueue } from './sync-indicator'
 import { CommandPalette } from './command-palette'
 import type { PluginRegistry } from '../../shared/registry/plugin-registry'
 import { sessionStore, activeOrganization, can } from '../../app/state/session'
+import { salesFloorStore, setActiveBranch } from '../../app/state/sales-floor'
 import { offlineStatus } from '../../app/state/offline'
 import { getRepositories } from '../../app/data'
 import { appPath } from '../../app/router/router'
@@ -248,6 +249,7 @@ export function appShell(options: AppShellOptions): AppShell {
         h(
           'div',
           { class: 'flex items-center gap-2' },
+          branchSwitcher(),
           posButton(onNavigate),
           profileMenu({ shopName, shopInitial, onNavigate, onSignOut })
         )
@@ -296,6 +298,61 @@ function currentPath(): string {
   return appPath().split('?')[0] || '/'
 }
 
+
+/**
+ * Which branch this device is selling from.
+ *
+ * Invisible for the shop with one branch — which is most shops — and a
+ * select in the topbar for the shop with two, because "which counter am I
+ * standing at" is a fact the cashier should be able to see without opening a
+ * settings screen. Changing it re-resolves the whole sales floor: warehouse,
+ * register and open session all follow the branch (docs/13 P1-4).
+ */
+function branchSwitcher(): HTMLElement {
+  const host = h('div', { class: 'hidden' })
+
+  const render = (): void => {
+    const { branches, floor, status } = salesFloorStore.state
+    if (branches.length < 2) {
+      host.classList.add('hidden')
+      host.replaceChildren()
+      return
+    }
+    host.classList.remove('hidden')
+
+    const select = h('select', {
+      'aria-label': 'Branch',
+      class:
+        'h-9 max-w-[10rem] truncate rounded-md border border-border bg-surface px-2 text-sm ' +
+        'text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    }) as HTMLSelectElement
+    for (const branch of branches) {
+      select.append(
+        h('option', {
+          value: branch.id,
+          text: branch.name,
+          ...(branch.id === floor?.branchId ? { selected: 'true' } : {}),
+        })
+      )
+    }
+    if (status === 'loading') select.disabled = true
+    select.addEventListener('change', () => {
+      select.disabled = true
+      void setActiveBranch(select.value)
+    })
+
+    host.replaceChildren(
+      h('label', { class: 'flex items-center gap-1.5' },
+        icon('storefront', 'hidden text-base text-content-muted sm:block'),
+        select
+      )
+    )
+  }
+
+  salesFloorStore.subscribe(render)
+  render()
+  return host
+}
 
 /**
  * The one button the counter reaches for.

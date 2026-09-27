@@ -55,7 +55,7 @@ function build(): HTMLElement {
 }
 
 beforeEach(() => {
-  salesFloorStore.reset({ status: 'idle', floor: null, error: null, generation: 0 })
+  salesFloorStore.reset({ status: 'idle', floor: null, branches: [], error: null, generation: 0 })
 })
 
 afterEach(() => {
