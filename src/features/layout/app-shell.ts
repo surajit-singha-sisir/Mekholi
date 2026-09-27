@@ -249,7 +249,7 @@ export function appShell(options: AppShellOptions): AppShell {
         h(
           'div',
           { class: 'flex items-center gap-2' },
-          branchSwitcher(),
+          branchSwitcher(registry),
           posButton(onNavigate),
           profileMenu({ shopName, shopInitial, onNavigate, onSignOut })
         )
@@ -308,12 +308,17 @@ function currentPath(): string {
  * settings screen. Changing it re-resolves the whole sales floor: warehouse,
  * register and open session all follow the branch (docs/13 P1-4).
  */
-function branchSwitcher(): HTMLElement {
+function branchSwitcher(registry: PluginRegistry): HTMLElement {
   const host = h('div', { class: 'hidden' })
 
   const render = (): void => {
     const { branches, floor, status } = salesFloorStore.state
-    if (branches.length < 2) {
+    // The switcher belongs to the branch plugin: a shop that has not
+    // bought (or has switched off) multi-branch is a one-branch shop as
+    // far as its tills are concerned. A string check, not an import —
+    // the shell does not know the plugin, only whether branches are a
+    // capability this shop runs (spec §51).
+    if (!registry.loadedIds.includes('branch') || branches.length < 2) {
       host.classList.add('hidden')
       host.replaceChildren()
       return

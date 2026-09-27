@@ -64,6 +64,7 @@ describe('application bootstrap', () => {
       'barcode-scanner',
       'batch-expiry',
       'bd-vat',
+      'branch',
       'due-ledger',
       'label-printing',
       'loyalty',

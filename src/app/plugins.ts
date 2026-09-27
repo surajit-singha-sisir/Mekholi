@@ -26,6 +26,7 @@ import { barcodeScannerManifest } from '../plugins/barcode-scanner/manifest'
 import { bdVatManifest } from '../plugins/bd-vat/manifest'
 import { dueLedgerManifest } from '../plugins/due-ledger/manifest'
 import { batchExpiryManifest } from '../plugins/batch-expiry/manifest'
+import { branchManifest } from '../plugins/branch/manifest'
 import { labelPrintingManifest } from '../plugins/label-printing/manifest'
 import { loyaltyManifest } from '../plugins/loyalty/manifest'
 import { loyaltyLiteManifest } from '../plugins/loyalty-lite/manifest'
@@ -140,6 +141,10 @@ export const SHIPPED_PLUGINS: readonly ShippedPlugin[] = [
   {
     manifest: bdVatManifest,
     load: async () => (await import('../plugins/bd-vat')).bdVatPlugin,
+  },
+  {
+    manifest: branchManifest,
+    load: async () => (await import('../plugins/branch')).branchPlugin,
   },
   {
     manifest: dueLedgerManifest,
