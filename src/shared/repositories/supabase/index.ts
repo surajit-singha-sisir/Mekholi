@@ -1753,6 +1753,20 @@ function createOrganization(
       return { id: data.id, email: data.email, expiresAt: data.expires_at }
     },
 
+    async createStaff(email, password, name, roleId, branchId = null) {
+      const data = unwrap(
+        await client.rpc('create_staff_account', {
+          p_organization_id: requireOrg(organizationId),
+          p_email: email,
+          p_password: password,
+          p_name: name,
+          p_role_id: roleId,
+          p_branch_id: branchId,
+        })
+      ) as { user_id: string; email: string; created: boolean }
+      return { id: data.user_id, email: data.email, created: data.created }
+    },
+
     async removeStaff(userId) {
       unwrap(
         await client.rpc('remove_staff', {

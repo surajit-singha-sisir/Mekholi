@@ -314,6 +314,8 @@ export interface OrganizationRepository {
   updateSettings(input: Partial<Pick<OrganizationSettings, 'name' | 'currency' | 'timezone' | 'locale' | 'logoUrl'>> & { settings?: Record<string, unknown> }): Promise<OrganizationSettings>
   listStaff(): Promise<StaffRow[]>
   inviteStaff(email: string, roleId: string, branchId?: string | null): Promise<{ id: string; email: string; expiresAt: string }>
+  /** Owner/admin sets email + password directly — no confirmation email. */
+  createStaff(email: string, password: string, name: string, roleId: string, branchId?: string | null): Promise<{ id: string; email: string; created: boolean }>
   removeStaff(userId: string): Promise<void>
   listPermissions(): Promise<{ id: string; key: string; label: string; category: string }[]>
   listRoles(): Promise<RoleRow[]>

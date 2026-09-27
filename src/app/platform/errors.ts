@@ -30,6 +30,9 @@ const BUSINESS_MESSAGES: Record<string, string> = {
   over_refund: 'That refund exceeds what was sold.',
   sale_not_refundable: 'This sale can no longer be refunded.',
   session_not_open: 'The register session is closed. Open one to continue.',
+  invalid_email: 'That email address does not look right.',
+  password_too_short: 'The password must be at least 8 characters.',
+  staff_already_member: 'That person already has access to this shop.',
 }
 
 export interface TranslatedError {

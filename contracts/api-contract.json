@@ -1,8 +1,18 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 53,
+  "migrations": 52,
   "rpc": {
+    "accept_staff_invitations": {
+      "returns": "integer",
+      "params": [
+        {
+          "name": "p_user_id",
+          "type": "uuid",
+          "required": false
+        }
+      ]
+    },
     "adjust_stock": {
       "returns": "numeric",
       "params": [
@@ -172,6 +182,41 @@
         }
       ]
     },
+    "collect_customer_payment": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_customer_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_amount",
+          "type": "numeric",
+          "required": true
+        },
+        {
+          "name": "p_method_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_sale_id",
+          "type": "uuid",
+          "required": false
+        },
+        {
+          "name": "p_reference",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_note",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
     "complete_sale": {
       "returns": "jsonb",
       "params": [
@@ -232,6 +277,41 @@
         }
       ]
     },
+    "create_staff_account": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_email",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_password",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_role_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_branch_id",
+          "type": "uuid",
+          "required": false
+        }
+      ]
+    },
     "dashboard_summary": {
       "returns": "jsonb",
       "params": [
@@ -279,6 +359,41 @@
           "name": "p_note",
           "type": "text",
           "required": false
+        }
+      ]
+    },
+    "invite_staff": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_email",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_role_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_branch_id",
+          "type": "uuid",
+          "required": false
+        }
+      ]
+    },
+    "list_staff": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
         }
       ]
     },
@@ -697,6 +812,21 @@
         }
       ]
     },
+    "remove_staff": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_user_id",
+          "type": "uuid",
+          "required": true
+        }
+      ]
+    },
     "report_catalog": {
       "returns": "jsonb",
       "params": []
@@ -820,6 +950,51 @@
       "returns": "jsonb",
       "params": []
     },
+    "set_role_permissions": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_role_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_permission_keys",
+          "type": "ARRAY",
+          "required": true
+        }
+      ]
+    },
+    "set_staff_roles": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_user_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_role_ids",
+          "type": "ARRAY",
+          "required": true
+        },
+        {
+          "name": "p_branch_id",
+          "type": "uuid",
+          "required": false
+        }
+      ]
+    },
     "stock_in": {
       "returns": "jsonb",
       "params": [
@@ -902,146 +1077,6 @@
           "name": "p_items",
           "type": "jsonb",
           "required": true
-        },
-        {
-          "name": "p_note",
-          "type": "text",
-          "required": false
-        }
-      ]
-    },
-    "accept_staff_invitations": {
-      "returns": "integer",
-      "params": [
-        {
-          "name": "p_user_id",
-          "type": "uuid",
-          "required": false
-        }
-      ]
-    },
-    "invite_staff": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_organization_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_email",
-          "type": "text",
-          "required": true
-        },
-        {
-          "name": "p_role_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_branch_id",
-          "type": "uuid",
-          "required": false
-        }
-      ]
-    },
-    "list_staff": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_organization_id",
-          "type": "uuid",
-          "required": true
-        }
-      ]
-    },
-    "remove_staff": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_organization_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_user_id",
-          "type": "uuid",
-          "required": true
-        }
-      ]
-    },
-    "set_staff_roles": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_organization_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_user_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_role_ids",
-          "type": "uuid[]",
-          "required": true
-        },
-        {
-          "name": "p_branch_id",
-          "type": "uuid",
-          "required": false
-        }
-      ]
-    },
-    "set_role_permissions": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_organization_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_role_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_permission_keys",
-          "type": "text[]",
-          "required": true
-        }
-      ]
-    },
-    "collect_customer_payment": {
-      "returns": "jsonb",
-      "params": [
-        {
-          "name": "p_customer_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_amount",
-          "type": "numeric",
-          "required": true
-        },
-        {
-          "name": "p_method_id",
-          "type": "uuid",
-          "required": true
-        },
-        {
-          "name": "p_sale_id",
-          "type": "uuid",
-          "required": false
-        },
-        {
-          "name": "p_reference",
-          "type": "text",
-          "required": false
         },
         {
           "name": "p_note",

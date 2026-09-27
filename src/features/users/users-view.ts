@@ -26,18 +26,18 @@ export function usersView(): HTMLElement {
       mount(content, h('div', { class: 'flex justify-center p-12' }, spinner()))
       return
     }
-    const invite = can('users.create') ? button('Invite staff', { variant: 'primary', icon: 'person_add', onClick: () => openInvite() }) : null
+    const add = can('users.create') ? button('Add staff', { variant: 'primary', icon: 'person_add', onClick: () => openAdd() }) : null
     mount(content,
       h('div', { class: 'flex flex-wrap items-end justify-between gap-3' },
         h('div', {},
           h('h1', { class: 'text-lg font-semibold text-content', text: 'Staff' }),
-          h('p', { class: 'mt-1 text-sm text-content-muted', text: 'Invite people, assign roles and revoke access without deleting their account.' })
+          h('p', { class: 'mt-1 text-sm text-content-muted', text: 'Create logins yourself — set the email and password, hand them over, done.' })
         ),
-        invite
+        add
       ),
       staff.length > 0
         ? h('div', { class: 'divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface' }, ...staff.map((row) => staffRow(row)))
-        : emptyState('No staff yet', { description: 'Invite a cashier, manager or accountant to start sharing the shop.', iconName: 'group', action: invite })
+        : emptyState('No staff yet', { description: 'Add a cashier, manager or accountant to start sharing the shop.', iconName: 'group', action: add })
     )
   }
 
@@ -61,26 +61,38 @@ export function usersView(): HTMLElement {
     )
   }
 
-  function openInvite(): void {
-    const email = input({ type: 'email', autofocus: true, placeholder: 'cashier@example.com' })
+  function openAdd(): void {
+    const name = input({ autofocus: true, placeholder: 'Rahima Khatun' })
+    const email = input({ type: 'email', placeholder: 'cashier@example.com' })
+    const password = input({ placeholder: 'At least 8 characters', autocomplete: 'off' })
+    const generate = button('Generate', { variant: 'ghost', icon: 'casino', onClick: () => { password.value = generatePassword() } })
     const role = select({ options: roles.map((item) => ({ value: item.id, label: item.name })), placeholder: 'Choose a role…' })
     const branch = select({ options: branches.map((item) => ({ value: item.id, label: item.name })), placeholder: 'All branches' })
     const error = h('p', { class: 'hidden text-sm text-danger', role: 'alert' })
-    const save = button('Send invite', { variant: 'primary', fullWidth: true, size: 'lg' })
-    const dialog = modal({ title: 'Invite staff', subtitle: 'They receive a secure Supabase sign-in link.', iconName: 'person_add', size: 'sm', footer: [h('div', { class: 'w-full' }, save)] })
-    dialog.body.replaceChildren(h('div', { class: 'space-y-4' }, field('Email address', email, { required: true }), field('Role', role, { required: true }), field('Branch access', branch, { hint: 'Leave blank to grant access to every branch.' }), error))
+    const save = button('Create account', { variant: 'primary', fullWidth: true, size: 'lg' })
+    const dialog = modal({ title: 'Add staff', subtitle: 'No confirmation email — the account works the moment you create it.', iconName: 'person_add', size: 'sm', footer: [h('div', { class: 'w-full' }, save)] })
+    dialog.body.replaceChildren(h('div', { class: 'space-y-4' },
+      field('Full name', name),
+      field('Email address', email, { required: true, hint: 'This is their sign-in name; it does not need a real inbox.' }),
+      field('Password', h('div', { class: 'flex items-stretch gap-2' }, h('div', { class: 'flex-1' }, password), generate), { required: true, hint: 'Share it with them yourself — it is shown only here.' }),
+      field('Role', role, { required: true }),
+      field('Branch access', branch, { hint: 'Leave blank to grant access to every branch.' }),
+      error
+    ))
     save.addEventListener('click', () => {
       void (async () => {
-        if (!email.value.includes('@') || !role.value) {
-          error.textContent = 'Enter a valid email and choose a role.'
+        if (!email.value.includes('@') || !role.value || password.value.length < 8) {
+          error.textContent = 'Enter a valid email, a password of at least 8 characters, and choose a role.'
           error.classList.remove('hidden')
           return
         }
         save.disabled = true
         try {
-          await repos.organization.inviteStaff(email.value.trim(), role.value, branch.value || null)
+          const made = await repos.organization.createStaff(email.value.trim(), password.value, name.value.trim(), role.value, branch.value || null)
           dialog.close()
-          toastSuccess(`A sign-in link was sent to ${email.value.trim()}.`)
+          toastSuccess(made.created
+            ? `Account ready. ${made.email} can sign in with that password right now.`
+            : `${made.email} already had a login — it now has access to this shop.`)
           await reload()
         } catch (err) {
           error.textContent = translateError(err).message
@@ -149,6 +161,18 @@ export function usersView(): HTMLElement {
   void reload()
   mount(root, content)
   return root
+}
+
+/**
+ * A password worth reading over the counter: unambiguous characters only
+ * (no 0/O, 1/l/I), long enough that the 8-character floor is comfortably
+ * cleared, random from the platform's CSPRNG rather than Math.random.
+ */
+export function generatePassword(length = 12): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint32Array(length)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (n) => alphabet[n % alphabet.length]).join('')
 }
 
 export default usersView
