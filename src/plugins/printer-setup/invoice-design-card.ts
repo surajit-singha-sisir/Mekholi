@@ -71,9 +71,17 @@ export function invoiceDesignCard(options: InvoiceDesignOptions): HTMLElement {
    * correctly, which the card header already is.
    */
   function drawTemplates(): void {
+    // Mushak-6.3 is switched on from the bd-vat plugin's own screen, where
+    // the BIN and the guide live — a tax form should be chosen next to the
+    // things that make it lawful. It still *shows* here while it is the
+    // active template, so this card never lies about what the printer does
+    // and never strands a shop whose plugin was later switched off.
+    const templates = INVOICE_TEMPLATES.filter(
+      (template) => template.value !== 'mushak' || design.template === 'mushak'
+    )
     mount(
       templateHost,
-      ...INVOICE_TEMPLATES.map((template) =>
+      ...templates.map((template) =>
         h('button', {
           type: 'button',
           'data-template': template.value,

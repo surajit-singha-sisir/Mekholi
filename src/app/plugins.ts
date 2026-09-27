@@ -23,6 +23,7 @@ import type {
   ShippedPlugin,
 } from '../shared/registry/plugin-types'
 import { barcodeScannerManifest } from '../plugins/barcode-scanner/manifest'
+import { bdVatManifest } from '../plugins/bd-vat/manifest'
 import { batchExpiryManifest } from '../plugins/batch-expiry/manifest'
 import { labelPrintingManifest } from '../plugins/label-printing/manifest'
 import { loyaltyManifest } from '../plugins/loyalty/manifest'
@@ -134,6 +135,10 @@ export const SHIPPED_PLUGINS: readonly ShippedPlugin[] = [
   {
     manifest: batchExpiryManifest,
     load: async () => (await import('../plugins/batch-expiry')).batchExpiryPlugin,
+  },
+  {
+    manifest: bdVatManifest,
+    load: async () => (await import('../plugins/bd-vat')).bdVatPlugin,
   },
   {
     manifest: labelPrintingManifest,

@@ -63,6 +63,7 @@ describe('application bootstrap', () => {
     expect(ids).toEqual([
       'barcode-scanner',
       'batch-expiry',
+      'bd-vat',
       'label-printing',
       'loyalty',
       'loyalty-lite',

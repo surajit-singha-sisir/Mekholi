@@ -87,6 +87,7 @@ describe('what a plugin costs', () => {
     const free = manifests.filter((manifest) => (manifest.pricing?.priceBdt ?? 0) === 0)
     expect(free.map((manifest) => manifest.id).sort()).toEqual([
       'barcode-scanner',
+      'bd-vat',
       'label-printing',
       'printer-setup',
       'warranty',
