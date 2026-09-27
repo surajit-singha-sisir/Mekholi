@@ -288,6 +288,27 @@ export interface DashboardWidgetDefinition {
   source?: string
 }
 
+/**
+ * A small control a plugin pins into the top bar — a bell, a sync light, a
+ * live rate. The top bar is the one strip of screen that is present on
+ * every view and sticky through every scroll, which is exactly why it is
+ * rationed: a widget here must earn the pixels, and the host draws it
+ * compact, at icon scale, between the page title and the shop controls.
+ *
+ * The element may position its own overlays (a dropdown panel, a strip
+ * under the bar) relative to the header — the header is the widget's
+ * nearest positioned ancestor by design.
+ */
+export interface HeaderWidgetDefinition {
+  id: string
+  permission?: string
+  /** Lower draws first (leftmost). Default 50. */
+  order?: number
+  render: () => HTMLElement | Promise<HTMLElement>
+  /** Set by the host. Never author this. */
+  source?: string
+}
+
 /** Extra UI inside core-owned surfaces (docs/05 §5-§7). */
 export interface PanelDefinition {
   id: string
@@ -588,6 +609,7 @@ export interface PluginAPI {
   registerSettingsSection(section: SettingsSectionDefinition): void
   registerShortcut(shortcut: ShortcutDefinition): void
   registerDashboardWidget(widget: DashboardWidgetDefinition): void
+  registerHeaderWidget(widget: HeaderWidgetDefinition): void
   registerScanResolver(resolver: ScanResolverDefinition): void
   registerSaleAdjustment(adjustment: SaleAdjustmentDefinition): void
   registerPOSPanel(panel: PanelDefinition): void

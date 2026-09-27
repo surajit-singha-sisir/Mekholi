@@ -211,6 +211,16 @@ eventBus.on('plugin.changed', () => {
 })
 
 /**
+ * The sanctioned door for navigation from outside the shell — a plugin's
+ * header widget, a toast action. The event existed in the vocabulary from
+ * the start; this is the core finally answering it. Plugins must not
+ * import the router (boundaries §51), and now they never need to.
+ */
+eventBus.on('ui.navigate', ({ data }) => {
+  router.navigate(data.to, { replace: data.replace === true })
+})
+
+/**
  * Render whatever plugin screen matches this path.
  *
  * `load()` is awaited here rather than at registration, so the page module is

@@ -19,6 +19,7 @@ import { sessionStore, activeOrganization, can } from '../../app/state/session'
 import { salesFloorStore, setActiveBranch } from '../../app/state/sales-floor'
 import { offlineStatus } from '../../app/state/offline'
 import { getRepositories } from '../../app/data'
+import { pluginHeaderHost } from '../../app/plugin-slots'
 import { appPath } from '../../app/router/router'
 import { selectOrganization } from '../../app/platform/auth'
 import type { EventBus } from '../../shared/bus'
@@ -249,6 +250,9 @@ export function appShell(options: AppShellOptions): AppShell {
         h(
           'div',
           { class: 'flex items-center gap-2' },
+          // Plugin controls that earned a place on the one always-visible
+          // strip — a notification bell, a sync light (docs/05 §7).
+          pluginHeaderHost(registry),
           branchSwitcher(registry),
           posButton(onNavigate),
           profileMenu({ shopName, shopInitial, onNavigate, onSignOut })

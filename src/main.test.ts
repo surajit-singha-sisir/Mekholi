@@ -70,6 +70,7 @@ describe('application bootstrap', () => {
       'loyalty',
       'loyalty-lite',
       'multi-currency',
+      'notifications',
       'printer-setup',
       'serial-numbers',
       'variants',

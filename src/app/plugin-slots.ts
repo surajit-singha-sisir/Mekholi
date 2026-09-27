@@ -44,6 +44,7 @@ import type {
   ReportDefinition,
   ReportRunContext,
   DashboardWidgetDefinition,
+  HeaderWidgetDefinition,
   PanelContext,
   PanelDefinition,
   PanelLine,
@@ -155,6 +156,50 @@ export function pluginWidgetsHost(registry: PluginRegistry): HTMLElement {
 
     const tiles = await Promise.all(tilePromises)
     mount(host, h('div', { class: 'grid gap-3 sm:grid-cols-2 xl:grid-cols-4' }, ...tiles))
+  }
+
+  void draw()
+  watchPluginSlots(host, () => void draw())
+  return host
+}
+
+// ── Header widgets ────────────────────────────────────────────────────────
+
+/**
+ * The top-bar slot: compact plugin controls between the page title and the
+ * shop's own buttons. Same three guarantees as every host — permission
+ * first, a throwing widget loses its pixels not the bar, and `title`
+ * carries the attribution a badge would be too wide for up here.
+ */
+export function pluginHeaderHost(registry: PluginRegistry): HTMLElement {
+  const host = h('div', { class: 'flex items-center gap-1' })
+
+  async function draw(): Promise<void> {
+    const widgets = visible<HeaderWidgetDefinition>(registry.headerWidgets.items).sort(
+      (a, b) => (a.order ?? 50) - (b.order ?? 50)
+    )
+    if (widgets.length === 0) {
+      mount(host, null)
+      return
+    }
+
+    const rendered = await Promise.all(
+      widgets.map(async (widget) => {
+        try {
+          const body = await widget.render()
+          const name = pluginRegistry.get(widget.source ?? '')?.manifest.name ?? widget.source ?? ''
+          const wrap = h('div', { class: 'flex items-center' }, body)
+          if (name) wrap.title = name
+          wrap.dataset.pluginSource = widget.source ?? ''
+          return wrap
+        } catch (error) {
+          // The bar is too small for an apology — log it and draw nothing.
+          console.error(`[plugin-host] "${widget.source ?? '?'}" could not draw its header widget`, error)
+          return null
+        }
+      })
+    )
+    mount(host, ...rendered.filter((el) => el !== null))
   }
 
   void draw()

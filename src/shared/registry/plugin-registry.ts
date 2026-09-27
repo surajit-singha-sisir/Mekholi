@@ -24,6 +24,7 @@ import {
 import { licenceFor, priceLabel, type Licence } from './plugin-licence'
 import type {
   DashboardWidgetDefinition,
+  HeaderWidgetDefinition,
   EntityDefinition,
   FormSectionDefinition,
   Logger,
@@ -211,6 +212,7 @@ export class PluginRegistry {
   readonly settingsSections = new Registry<SettingsSectionDefinition>()
   readonly shortcuts = new Registry<ShortcutDefinition>()
   readonly widgets = new Registry<DashboardWidgetDefinition>()
+  readonly headerWidgets = new Registry<HeaderWidgetDefinition>()
   readonly scanResolvers = new Registry<ScanResolverDefinition>()
   readonly saleAdjustments = new Registry<SaleAdjustmentDefinition>()
   readonly posPanels = new Registry<PanelDefinition>()
@@ -397,6 +399,7 @@ export class PluginRegistry {
     this.settingsSections.clear()
     this.shortcuts.clear()
     this.widgets.clear()
+    this.headerWidgets.clear()
     this.scanResolvers.clear()
     this.saleAdjustments.clear()
     this.middleware.clear()
@@ -471,6 +474,7 @@ export class PluginRegistry {
       this.settingsSections,
       this.shortcuts,
       this.widgets,
+      this.headerWidgets,
       this.scanResolvers,
       // `saleAdjustments` was missing from this list, so a plugin switched off
       // mid-session kept its discount strip on the till until a reload.
@@ -513,6 +517,8 @@ export class PluginRegistry {
         this.shortcuts.add({ ...shortcut, source: pluginId }, pluginId),
       registerDashboardWidget: (widget) =>
         this.widgets.add({ ...widget, source: pluginId }, pluginId),
+      registerHeaderWidget: (widget) =>
+        this.headerWidgets.add({ ...widget, source: pluginId }, pluginId),
       registerScanResolver: (resolver) =>
         this.scanResolvers.add({ ...resolver, source: pluginId }, pluginId),
       registerSaleAdjustment: (adjustment) =>
