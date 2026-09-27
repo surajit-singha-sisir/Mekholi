@@ -1131,13 +1131,18 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
         },
         // The khata path exists only when the sale has a name on it — the
         // server refuses an anonymous due (057), so the dialog never offers
-        // one. Same bankSale: `complete_sale` books the underpayment as
+        // one — and only while the due-ledger plugin is loaded: a shop that
+        // does not sell on credit switched the whole idea off, and this
+        // button is part of the idea. A string check, not an import — the
+        // till does not know the plugin, only whether the shop keeps a
+        // khata. Same bankSale: `complete_sale` books the underpayment as
         // PARTIALLY_PAID and the balance trigger writes it in the ledger.
-        onDue: cart.state.cart.customerId
-          ? async (payments) => {
-              await bankSale(payments, { invoice: true })
-            }
-          : undefined,
+        onDue:
+          registry.loadedIds.includes('due-ledger') && cart.state.cart.customerId
+            ? async (payments) => {
+                await bankSale(payments, { invoice: true })
+              }
+            : undefined,
       })
     })()
   }

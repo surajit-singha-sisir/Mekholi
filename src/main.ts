@@ -131,7 +131,11 @@ const routes: Route[] = [
   ...catalogueRoutes(),
   ...stockRoutes({ onNavigate: (path) => router.navigate(path) }),
   ...salesRoutes({ registry }),
-  ...customerRoutes({ onNavigate: (path) => router.navigate(path) }),
+  ...customerRoutes({
+    onNavigate: (path) => router.navigate(path),
+    // The khata surfaces follow the plugin (see the due-ledger manifest).
+    dueLedger: () => registry.loadedIds.includes('due-ledger'),
+  }),
   ...supplierRoutes({ onNavigate: (path) => router.navigate(path) }),
   ...purchaseRoutes(),
   ...expenseRoutes(),

@@ -34,6 +34,13 @@ function asMinor(value: string): Minor {
 
 export interface CustomersViewOptions {
   onNavigate?: (path: string) => void
+  /**
+   * True while the shop keeps a due book (the due-ledger plugin is
+   * loaded). Off, the "Collect due" button is not offered — what the
+   * customer owes is still *shown*, because a fact on the books does not
+   * stop being true when the workflow around it is switched off.
+   */
+  collectDue?: boolean
 }
 
 export function customersView(options: CustomersViewOptions = {}): HTMLElement {
@@ -352,7 +359,7 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
           h(
             'div',
             { class: 'flex flex-wrap gap-2' },
-            minorToNumber(asMinor(current.balance)) > 0 && can('sales.create')
+            options.collectDue && minorToNumber(asMinor(current.balance)) > 0 && can('sales.create')
               ? button('Collect due', { variant: 'primary', icon: 'payments', onClick: () => { dialog.close(); void openCollect(current) } })
               : null,
             can('customers.edit') ? button('Edit', { variant: 'outline', icon: 'edit', onClick: () => { dialog.close(); openForm(current) } }) : null,
