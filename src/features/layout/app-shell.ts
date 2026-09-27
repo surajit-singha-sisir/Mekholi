@@ -44,6 +44,13 @@ export interface AppShell {
   palette: CommandPalette
   /** Re-render the sidebar — call after permissions or plugins change. */
   refreshNav: () => void
+  /**
+   * Move the active highlight to the item matching `path` — call on every
+   * navigation. Cheaper than `refreshNav`, and the distinction matters: a
+   * full rebuild on each click would reset scroll position and collapsed
+   * sections just to move one highlight.
+   */
+  setActivePath: (path: string) => void
   setTitle: (title: string, subtitle?: string) => void
 }
 
@@ -285,6 +292,13 @@ export function appShell(options: AppShellOptions): AppShell {
     outlet,
     palette,
     refreshNav: renderSidebar,
+    setActivePath: (path) => {
+      // Both rails: the desktop sidebar and the phone drawer each hold their
+      // own copy of the nav, and the one not on screen must not keep a stale
+      // highlight for its next opening.
+      markActive(sidebarHost, path)
+      markActive(drawerHost, path)
+    },
     setTitle: (title, subtitle) => {
       titleEl.textContent = title
       if (subtitle === undefined || subtitle === '') {

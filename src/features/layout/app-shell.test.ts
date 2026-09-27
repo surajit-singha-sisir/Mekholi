@@ -91,6 +91,24 @@ describe('app shell', () => {
     expect(el.querySelector('[data-nav-id="batch-expiry"]')).not.toBeNull()
   })
 
+  it('moves the active highlight on navigation — and off the plugin item', () => {
+    const { el, shell } = build()
+
+    // Land on the plugin's screen: its item is the one marked current.
+    shell.setActivePath('/plugins/batch-expiry')
+    const marked = (): string[] =>
+      Array.from(el.querySelectorAll('[aria-current="page"]')).map(
+        (item) => (item as HTMLElement).dataset['navId'] ?? ''
+      )
+    expect(marked()).toContain('batch-expiry')
+    expect(marked()).not.toContain('dashboard')
+
+    // Navigate away: the highlight must follow, not stay on the plugin.
+    shell.setActivePath('/')
+    expect(marked()).toContain('dashboard')
+    expect(marked()).not.toContain('batch-expiry')
+  })
+
   it('hides navigation the role cannot use', () => {
     const { el } = build()
     expect(el.querySelector('[data-nav-id="settings"]')).toBeNull()

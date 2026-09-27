@@ -297,7 +297,13 @@ const router = new Router({
     if (can(route.permission)) return null
     return '/forbidden'
   },
-  onNavigate: (route) => shell?.setTitle(route.title),
+  onNavigate: (route, ctx) => {
+    shell?.setTitle(route.title)
+    // The sidebar highlight follows every navigation — clicks, back/forward,
+    // and plugin `ui.navigate` events alike. Without this it froze on
+    // whatever screen the app happened to load on.
+    shell?.setActivePath(ctx.path)
+  },
   onError: (error, route) => {
     const translated = translateError(error)
     console.error(`[router] ${route.path}`, error)
