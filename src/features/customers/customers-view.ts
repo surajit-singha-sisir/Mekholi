@@ -12,8 +12,10 @@
 
 import { h, mount } from '../../components/ui/h'
 import { button, spinner } from '../../components/ui/button'
-import { badge, card, emptyState } from '../../components/ui/card'
+import { card, emptyState } from '../../components/ui/card'
 import { input, field, searchInput, select } from '../../components/ui/input'
+import { dataTable } from '../../components/ui/table'
+import { exportToolbar, sortReportRows } from '../../components/ui/table-tools'
 import { modal } from '../../components/feedback/modal'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { getRepositories } from '../../app/data'
@@ -21,6 +23,7 @@ import { activeOrganization, can } from '../../app/state/session'
 import { formatMoney, minor, minorToNumber, parseMinor, type Minor } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
 import type { CustomerRow } from '../../shared/types/records'
+import type { ReportCell, ReportColumn } from '../../shared/repositories/contracts'
 
 /**
  * `CustomerRow` carries money as the raw numeric strings Postgres sends
@@ -31,6 +34,18 @@ import type { CustomerRow } from '../../shared/types/records'
 function asMinor(value: string): Minor {
   return parseMinor(value) ?? minor(0)
 }
+
+/** The customer book's columns — the screen, the CSV, the picture and the
+ * printout all render exactly these, in this order (§23). */
+export const CUSTOMER_COLUMNS: readonly ReportColumn[] = [
+  { key: 'name', label: 'Customer', type: 'text' },
+  { key: 'phone', label: 'Phone', type: 'text' },
+  { key: 'email', label: 'Email', type: 'text' },
+  { key: 'due', label: 'Due', type: 'money', align: 'right' },
+  { key: 'store_credit', label: 'Store credit', type: 'money', align: 'right' },
+  { key: 'credit_limit', label: 'Credit limit', type: 'money', align: 'right' },
+  { key: 'added', label: 'Added', type: 'date' },
+]
 
 export interface CustomersViewOptions {
   onNavigate?: (path: string) => void
@@ -51,6 +66,28 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
   let rows: CustomerRow[] = []
   let cursor: string | null = null
   let loading = false
+  let sortKey: string | undefined
+  let sortDir: 'asc' | 'desc' = 'asc'
+
+  /** One customer as the table (and every export) sees it. */
+  function toReportRow(row: CustomerRow): Record<string, ReportCell> {
+    const limit = Number(asMinor(row.credit_limit))
+    return {
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      due: Number(asMinor(row.balance)),
+      store_credit: Number(asMinor(row.store_credit)),
+      credit_limit: limit > 0 ? limit : null,
+      added: row.created_at,
+    }
+  }
+
+  function visibleRows(): Record<string, ReportCell>[] {
+    const mapped = rows.map(toReportRow)
+    return sortKey ? sortReportRows(CUSTOMER_COLUMNS, mapped, sortKey, sortDir) : mapped
+  }
 
   const root = h('div', { class: 'flex w-full min-w-0 flex-col' })
   const listSlot = h('div', { class: 'p-3' })
@@ -108,38 +145,56 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
       return
     }
 
+    const visible = visibleRows()
+    const totalDue = visible.reduce((sum, row) => sum + Number(row['due'] ?? 0), 0)
+    const totalCredit = visible.reduce((sum, row) => sum + Number(row['store_credit'] ?? 0), 0)
+
+    const toolbar = exportToolbar({
+      title: 'Customers',
+      filename: 'customers',
+      columns: CUSTOMER_COLUMNS,
+      currency,
+      rows: () => visibleRows(),
+      subtitle: () =>
+        `${visible.length} customer${visible.length === 1 ? '' : 's'} · ` +
+        `${formatMoney(minor(totalDue), { currency, digits: 'latin', convert: false })} due · ` +
+        `${formatMoney(minor(totalCredit), { currency, digits: 'latin', convert: false })} store credit`,
+      footerNote: activeOrganization()?.name ?? 'Mekholi POS',
+      onNotice: (message, bad) => (bad ? toastError(message) : toastSuccess(message)),
+    })
+
     mount(
       listSlot,
       h(
         'div',
-        { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
-        ...rows.map((row) =>
-          h(
-            'button',
-            {
-              type: 'button',
-              class:
-                'flex w-full min-h-[64px] items-center gap-3 border-b border-border p-3 text-left last:border-b-0 ' +
-                'hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              onclick: () => void openDetail(row),
+        { class: 'flex flex-col gap-3' },
+        h('div', { class: 'flex justify-end' }, toolbar),
+        h(
+          'div',
+          { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
+          dataTable({
+            columns: CUSTOMER_COLUMNS,
+            rows: visible,
+            totals: { due: totalDue, store_credit: totalCredit },
+            currency,
+            sort: sortKey,
+            dir: sortDir,
+            onSort: (key) => {
+              if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+              else {
+                sortKey = key
+                // Money opens big-first; names and dates open A-first/oldest-first.
+                sortDir = CUSTOMER_COLUMNS.find((c) => c.key === key)?.type === 'money' ? 'desc' : 'asc'
+              }
+              render()
             },
-            h(
-              'div',
-              { class: 'min-w-0 flex-1' },
-              h('p', { class: 'truncate font-medium text-content', text: row.name }),
-              h('p', { class: 'truncate text-xs text-content-muted', text: row.phone ?? row.email ?? 'No contact details' })
-            ),
-            h(
-              'div',
-              { class: 'flex shrink-0 flex-col items-end gap-1' },
-              minorToNumber(asMinor(row.balance)) > 0
-                ? badge(formatMoney(asMinor(row.balance), { currency }), { tone: 'warning' })
-                : null,
-              minorToNumber(asMinor(row.store_credit)) > 0
-                ? badge(`credit ${formatMoney(asMinor(row.store_credit), { currency })}`, { tone: 'success' })
-                : null
-            )
-          )
+            onRowClick: (reportRow) => {
+              const original = rows.find((row) => row.id === reportRow['id'])
+              if (original) void openDetail(original)
+            },
+            pageSize: 50,
+            emptyTitle: 'No customers yet',
+          })
         )
       )
     )
