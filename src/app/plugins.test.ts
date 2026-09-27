@@ -76,15 +76,18 @@ describe('what this bundle ships', () => {
 })
 
 describe('what a plugin costs', () => {
-  it('prices every plugin, and keeps the three that must stay free free', () => {
+  it('prices every plugin, and keeps the four that must stay free free', () => {
     // Warranty: a shop should be able to keep a promise without paying for
     // the privilege. Printer Setup and Barcode Scanner: they configure
     // hardware the shop already owns, and they were core until the bundle
     // grew too heavy to carry them for the shops that print nothing —
     // charging for what used to be included would be a bait and switch.
+    // Label Printing: paper for that same scanner — charging for the label
+    // is charging for the scanner working.
     const free = manifests.filter((manifest) => (manifest.pricing?.priceBdt ?? 0) === 0)
     expect(free.map((manifest) => manifest.id).sort()).toEqual([
       'barcode-scanner',
+      'label-printing',
       'printer-setup',
       'warranty',
     ])

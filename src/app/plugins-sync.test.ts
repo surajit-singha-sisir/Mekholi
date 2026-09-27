@@ -75,8 +75,8 @@ afterEach(async () => {
 })
 
 describe('the always-on set', () => {
-  it('is exactly the two device screens that used to be core', () => {
-    expect(alwaysOnPlugins().sort()).toEqual(['barcode-scanner', 'printer-setup'])
+  it('is exactly the hardware screens: scanner, printer, and the labels between them', () => {
+    expect(alwaysOnPlugins().sort()).toEqual(['barcode-scanner', 'label-printing', 'printer-setup'])
   })
 
   it('never contains a plugin that charges money or owns a table', () => {

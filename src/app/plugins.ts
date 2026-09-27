@@ -24,6 +24,7 @@ import type {
 } from '../shared/registry/plugin-types'
 import { barcodeScannerManifest } from '../plugins/barcode-scanner/manifest'
 import { batchExpiryManifest } from '../plugins/batch-expiry/manifest'
+import { labelPrintingManifest } from '../plugins/label-printing/manifest'
 import { loyaltyManifest } from '../plugins/loyalty/manifest'
 import { loyaltyLiteManifest } from '../plugins/loyalty-lite/manifest'
 import { printerSetupManifest } from '../plugins/printer-setup/manifest'
@@ -133,6 +134,13 @@ export const SHIPPED_PLUGINS: readonly ShippedPlugin[] = [
   {
     manifest: batchExpiryManifest,
     load: async () => (await import('../plugins/batch-expiry')).batchExpiryPlugin,
+  },
+  {
+    manifest: labelPrintingManifest,
+    load: async () => (await import('../plugins/label-printing')).labelPrintingPlugin,
+    // Paper for the shop's own scanner — hardware working, not a capability
+    // the shop buys. See `alwaysOn` on ShippedPlugin.
+    alwaysOn: true,
   },
   {
     manifest: loyaltyManifest,
