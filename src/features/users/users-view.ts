@@ -10,9 +10,18 @@ import { getRepositories } from '../../app/data'
 import { can } from '../../app/state/session'
 import { translateError } from '../../app/platform/errors'
 import type { RoleRow, StaffRow } from '../../shared/repositories/contracts'
+import type { PluginRegistry } from '../../shared/registry/plugin-registry'
 
-export function usersView(): HTMLElement {
+export interface UsersViewOptions {
+  registry?: PluginRegistry
+}
+
+export function usersView(options: UsersViewOptions = {}): HTMLElement {
   const repos = getRepositories()
+  // Branches are the Branch plugin's idea. Until the shop has bought and
+  // switched it on, every shop is a one-branch shop and asking "which
+  // branch?" on a staff form is a question with no honest answer.
+  const branchAware = (): boolean => options.registry?.loadedIds.includes('branch') ?? false
   let staff: StaffRow[] = []
   let roles: RoleRow[] = []
   let branches: { id: string; name: string; code: string | null; is_primary: boolean }[] = []
@@ -43,14 +52,18 @@ export function usersView(): HTMLElement {
 
   function staffRow(row: StaffRow): HTMLElement {
     const roleText = row.roles.map((role) => role.name).join(', ') || 'No role'
-    const branchText = row.branches.length > 0 ? row.branches.map((branch) => branch.name).join(', ') : 'All branches'
+    const branchText = !branchAware()
+      ? ''
+      : row.branches.length > 0
+        ? row.branches.map((branch) => branch.name).join(', ')
+        : 'All branches'
     return h('div', { class: 'flex flex-wrap items-center gap-3 p-4' },
       h('div', { class: 'flex min-w-0 flex-1 items-center gap-3' },
         h('div', { class: 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary', text: row.name.charAt(0).toUpperCase() }),
         h('div', { class: 'min-w-0' },
           h('p', { class: 'truncate font-medium text-content', text: row.name }),
           h('p', { class: 'truncate text-sm text-content-muted', text: row.email }),
-          h('p', { class: 'truncate text-xs text-content-subtle', text: `${roleText} · ${branchText}` })
+          h('p', { class: 'truncate text-xs text-content-subtle', text: branchText ? `${roleText} · ${branchText}` : roleText })
         )
       ),
       h('div', { class: 'flex items-center gap-2' },
@@ -76,7 +89,7 @@ export function usersView(): HTMLElement {
       field('Email address', email, { required: true, hint: 'This is their sign-in name; it does not need a real inbox.' }),
       field('Password', h('div', { class: 'flex items-stretch gap-2' }, h('div', { class: 'flex-1' }, password), generate), { required: true, hint: 'Share it with them yourself — it is shown only here.' }),
       field('Role', role, { required: true }),
-      field('Branch access', branch, { hint: 'Leave blank to grant access to every branch.' }),
+      branchAware() ? field('Branch access', branch, { hint: 'Leave blank to grant access to every branch.' }) : null,
       error
     ))
     save.addEventListener('click', () => {
@@ -109,7 +122,7 @@ export function usersView(): HTMLElement {
     const error = h('p', { class: 'hidden text-sm text-danger', role: 'alert' })
     const save = button('Save access', { variant: 'primary', fullWidth: true, size: 'lg' })
     const dialog = modal({ title: `Access for ${row.name}`, iconName: 'admin_panel_settings', size: 'sm', footer: [h('div', { class: 'w-full' }, save)] })
-    dialog.body.replaceChildren(h('div', { class: 'space-y-4' }, field('Role', role, { required: true }), field('Branch access', branch, { hint: 'Leave blank for all branches.' }), error))
+    dialog.body.replaceChildren(h('div', { class: 'space-y-4' }, field('Role', role, { required: true }), branchAware() ? field('Branch access', branch, { hint: 'Leave blank for all branches.' }) : null, error))
     save.addEventListener('click', () => {
       void (async () => {
         if (!role.value || !row.userId) return

@@ -326,7 +326,13 @@ export function salesView(options: SalesViewOptions): HTMLElement {
             h('p', { class: 'text-lg font-semibold tabular-nums text-content', text: sale.invoiceNo }),
             h('p', {
               class: 'text-xs text-content-muted',
-              text: [sale.customerName ?? 'Walk-in customer', sale.branchName ?? '', formatWhen(sale.createdAt)]
+              // The branch name belongs to the Branch plugin: a one-branch
+              // shop should not read "Main Store" on every line of its life.
+              text: [
+                sale.customerName ?? 'Walk-in customer',
+                registry.loadedIds.includes('branch') ? (sale.branchName ?? '') : '',
+                formatWhen(sale.createdAt),
+              ]
                 .filter(Boolean)
                 .join(' · '),
             })

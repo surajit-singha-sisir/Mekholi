@@ -188,7 +188,7 @@ const routes: Route[] = [
   },
   ...onboardingRoutes({ onDone: () => router.navigate('/') }),
   ...settingsRoutes(),
-  ...userRoutes(),
+  ...userRoutes({ registry }),
   ...roleRoutes(),
 ]
 

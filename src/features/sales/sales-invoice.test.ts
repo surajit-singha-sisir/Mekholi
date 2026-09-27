@@ -156,6 +156,16 @@ afterEach(() => {
 })
 
 describe('an invoice, months after the sale', () => {
+  it('keeps the branch name off the rows while the Branch plugin is off', async () => {
+    const view = salesView({ registry: emptyRegistry() })
+    document.body.append(view)
+    await settle()
+    // The fixture sale belongs to "Main Store"; a one-branch shop must not
+    // read a branch label on every line of its history.
+    expect(view.textContent).toContain('INV-0007')
+    expect(view.textContent).not.toContain('Main Store')
+  })
+
   it('offers all four ways to hand it over', async () => {
     await openSale()
 

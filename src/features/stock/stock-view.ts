@@ -13,15 +13,17 @@
 
 import { h, mount } from '../../components/ui/h'
 import { button, spinner } from '../../components/ui/button'
-import { badge, card, emptyState } from '../../components/ui/card'
+import { card, emptyState } from '../../components/ui/card'
 import { input, select } from '../../components/ui/input'
+import { dataTable } from '../../components/ui/table'
+import { exportToolbar, sortReportRows } from '../../components/ui/table-tools'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { getRepositories } from '../../app/data'
 import { activeOrganization } from '../../app/state/session'
 import { refreshStockAlerts } from '../../app/state/stock-alerts'
-import { formatMoney, formatQty } from '../../shared/domain/money'
+import { formatMoney, minor as minorOf } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
-import type { StockRow, WarehouseOption } from '../../shared/repositories/contracts'
+import type { ReportCell, ReportColumn, StockRow, WarehouseOption } from '../../shared/repositories/contracts'
 import {
   openStockDialog,
   type StockDialogMode,
@@ -29,6 +31,19 @@ import {
 import { can } from '../../app/state/session'
 
 type Filter = 'all' | 'low' | 'out'
+
+/** The stock book's columns — screen, CSV, picture and printout alike (§23). */
+const STOCK_COLUMNS: readonly ReportColumn[] = [
+  { key: 'product', label: 'Product', type: 'text' },
+  { key: 'sku', label: 'SKU', type: 'text' },
+  { key: 'warehouse', label: 'Location', type: 'text' },
+  { key: 'qty', label: 'On hand', type: 'qty', align: 'right' },
+  { key: 'reorder', label: 'Reorder at', type: 'qty', align: 'right' },
+  { key: 'cost', label: 'Avg cost', type: 'money', align: 'right' },
+  { key: 'value', label: 'Value', type: 'money', align: 'right' },
+  { key: 'status', label: 'Status', type: 'status' },
+  { key: 'updated', label: 'Last moved', type: 'date' },
+]
 
 export interface StockViewOptions {
   onNavigate?: (path: string) => void
@@ -48,10 +63,33 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
   let rows: StockRow[] = []
   let warehouses: WarehouseOption[] = []
   let loading = false
+  let sortKey: string | undefined
+  let sortDir: 'asc' | 'desc' = 'desc'
+
+  /** One stock line as the table (and every export) sees it. */
+  function toReportRow(row: StockRow): Record<string, ReportCell> {
+    return {
+      variantId: row.variantId,
+      product: row.variantName ? `${row.productName} — ${row.variantName}` : row.productName,
+      sku: row.sku,
+      warehouse: row.warehouseName,
+      qty: Number(row.quantity) / 1000,
+      reorder: row.trackStock ? Number(row.reorderPoint) / 1000 : null,
+      cost: Number(row.avgUnitCost),
+      value: Number(row.stockValue),
+      status: row.isOut ? 'out' : row.isLow ? 'low' : row.trackStock ? 'ok' : 'untracked',
+      updated: row.updatedAt,
+    }
+  }
+
+  function visibleRows(): Record<string, ReportCell>[] {
+    const mapped = rows.map(toReportRow)
+    return sortKey ? sortReportRows(STOCK_COLUMNS, mapped, sortKey, sortDir) : mapped
+  }
 
   const root = h('div', { class: 'flex w-full min-w-0 flex-col' })
 
-  const summarySlot = h('div', { class: 'grid grid-cols-2 gap-2 p-3 sm:grid-cols-4' })
+  const summarySlot = h('div', { class: 'grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 xl:grid-cols-6' })
   const listSlot = h('div', { class: 'px-3 pb-6' })
   const footerSlot = h('div', { class: 'border-t border-border p-3' })
 
@@ -134,7 +172,9 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
         statCard('Stock value', formatMoney(summary.stockValue, { currency }), 'payments'),
         statCard('Items in stock', String(summary.variantsInStock), 'inventory_2'),
         statCard('Low stock', String(summary.lowStock), 'trending_down', summary.lowStock > 0 ? 'warning' : undefined),
-        statCard('Out of stock', String(summary.outOfStock), 'production_quantity_limits', summary.outOfStock > 0 ? 'danger' : undefined)
+        statCard('Out of stock', String(summary.outOfStock), 'production_quantity_limits', summary.outOfStock > 0 ? 'danger' : undefined),
+        statCard('Movements today', String(summary.movementsToday), 'sync_alt'),
+        statCard('Stock locations', String(summary.warehouses), 'warehouse')
       )
     } catch (error) {
       mount(
@@ -232,61 +272,53 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
       return
     }
 
+    const visible = visibleRows()
+    const totalValue = visible.reduce((sum, row) => sum + Number(row['value'] ?? 0), 0)
+
+    const toolbar = exportToolbar({
+      title: 'Stock',
+      filename: 'stock',
+      columns: STOCK_COLUMNS,
+      currency,
+      rows: () => visibleRows(),
+      subtitle: () =>
+        `${visible.length} line${visible.length === 1 ? '' : 's'} · ` +
+        `${formatMoney(minorOf(totalValue), { currency, digits: 'latin', convert: false })} on the shelves`,
+      footerNote: activeOrganization()?.name ?? 'Mekholi POS',
+      onNotice: (message, bad) => (bad ? toastError(message) : toastSuccess(message)),
+    })
+
     mount(
       listSlot,
       h(
         'div',
-        { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
-        ...rows.map((row) =>
-          h(
-            'div',
-            {
-              class:
-                'flex items-center gap-3 border-b border-border p-3 last:border-b-0 ' +
-                'hover:bg-surface-muted',
+        { class: 'flex flex-col gap-3' },
+        h('div', { class: 'flex justify-end' }, toolbar),
+        h(
+          'div',
+          { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
+          dataTable({
+            columns: STOCK_COLUMNS,
+            rows: visible,
+            totals: { value: totalValue },
+            currency,
+            sort: sortKey,
+            dir: sortDir,
+            onSort: (key) => {
+              if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+              else {
+                sortKey = key
+                const type = STOCK_COLUMNS.find((c) => c.key === key)?.type
+                // Quantities and money open big-first; words open A-first.
+                sortDir = type === 'money' || type === 'qty' ? 'desc' : 'asc'
+              }
+              renderList()
             },
-            h(
-              'button',
-              {
-                type: 'button',
-                class:
-                  'flex min-h-[44px] min-w-0 flex-1 flex-col justify-center text-left ' +
-                  'rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                // The row is the way into the ledger: "why is this 37?" is the
-                // question a stock number always provokes.
-                onclick: () => onNavigate?.(`/stock/history/${row.variantId}`),
-              },
-              h('p', { class: 'truncate text-sm font-medium text-content', text: row.productName }),
-              h(
-                'p',
-                { class: 'mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-content-muted' },
-                row.variantName ? h('span', { text: row.variantName }) : null,
-                row.sku ? h('span', { class: 'tabular-nums', text: row.sku }) : null,
-                h('span', { text: row.warehouseName })
-              )
-            ),
-            h(
-              'div',
-              { class: 'flex shrink-0 flex-col items-end gap-1' },
-              h(
-                'div',
-                { class: 'flex items-center gap-1.5' },
-                row.isOut
-                  ? badge('Out', { tone: 'danger' })
-                  : row.isLow
-                    ? badge('Low', { tone: 'warning' })
-                    : null,
-                h('span', {
-                  class: 'text-sm font-semibold tabular-nums text-content',
-                  text: formatQty(row.quantity),
-                })
-              ),
-              h('span', {
-                class: 'text-xs text-content-subtle tabular-nums',
-                text: formatMoney(row.stockValue, { currency }),
-              })
-            )
-          )
+            // The row is the way into the ledger: "why is this 37?" is the
+            // question a stock number always provokes.
+            onRowClick: (reportRow) => onNavigate?.(`/stock/history/${String(reportRow['variantId'])}`),
+            pageSize: 50,
+          })
         )
       )
     )

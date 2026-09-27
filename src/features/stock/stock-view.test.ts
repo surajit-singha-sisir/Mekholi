@@ -139,8 +139,9 @@ describe('stock overview', () => {
     document.body.appendChild(view)
     await vi.waitFor(() => expect(view.textContent).toContain('Basmati Rice'))
 
-    const link = [...view.querySelectorAll('button')].find((b) => b.textContent?.includes('Basmati Rice'))
-    link?.click()
+    // The universal table makes the whole row the way into the ledger.
+    const row = [...view.querySelectorAll('tbody tr')].find((tr) => tr.textContent?.includes('Basmati Rice')) as HTMLElement
+    row.click()
     expect(navigate).toHaveBeenCalledWith('/stock/history/v-1')
   })
 })
