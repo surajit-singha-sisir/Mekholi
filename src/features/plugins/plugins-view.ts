@@ -39,6 +39,7 @@ import {
   type Licence,
 } from '../../shared/registry/plugin-licence'
 import { pluginCover } from './plugin-cover'
+import { pluginShelfOrder } from './plugin-order'
 import type { PluginManifest } from '../../shared/registry/plugin-types'
 import type { PluginCatalogEntry, PluginImpactRole } from '../../shared/repositories/contracts'
 
@@ -175,17 +176,19 @@ export function pluginsView(): HTMLElement {
 
   function visibleEntries(): PluginCatalogEntry[] {
     const needle = search.trim().toLowerCase()
-    return entries.filter((entry) => {
-      if (filter === 'on' && !entry.enabled) return false
-      if (filter === 'off' && entry.enabled) return false
-      if (filter === 'attention' && entry.status !== 'error') return false
-      if (!needle) return true
-      return (
-        entry.name.toLowerCase().includes(needle) ||
-        entry.key.includes(needle) ||
-        (entry.description ?? '').toLowerCase().includes(needle)
-      )
-    })
+    return entries
+      .filter((entry) => {
+        if (filter === 'on' && !entry.enabled) return false
+        if (filter === 'off' && entry.enabled) return false
+        if (filter === 'attention' && entry.status !== 'error') return false
+        if (!needle) return true
+        return (
+          entry.name.toLowerCase().includes(needle) ||
+          entry.key.includes(needle) ||
+          (entry.description ?? '').toLowerCase().includes(needle)
+        )
+      })
+      .sort(pluginShelfOrder)
   }
 
   function render(): void {
