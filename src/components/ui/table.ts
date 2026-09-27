@@ -52,6 +52,10 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   CANCELLED: 'danger',
   REFUNDED: 'danger',
   untracked: 'neutral',
+  // Due-book aging buckets: a week is trade, a month is patience.
+  fresh: 'success',
+  aging: 'warning',
+  stale: 'danger',
 }
 
 /** "2026-09-25T10:14:00+06:00" → "25 Sep 2026, 10:14" without a date library. */

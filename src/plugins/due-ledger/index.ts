@@ -50,7 +50,12 @@ export const dueLedgerPlugin: Plugin = {
       load: async () => {
         const screen = await import('./due-screen')
         return {
-          render: (ctx) => screen.createDueScreen({ db: api.db, currency: ctx.currency }),
+          render: (ctx) =>
+            screen.createDueScreen({
+              db: api.db,
+              currency: ctx.currency,
+              go: (route) => api.events.emit('ui.navigate', { type: 'ui.navigate', data: { to: route } }),
+            }),
         }
       },
     })
