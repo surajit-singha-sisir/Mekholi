@@ -42,6 +42,14 @@ import { salesFloor } from '../../app/state/sales-floor'
 import { activePromotedFields, activeShopType } from '../../app/shop-profile'
 import { splitPluginFields } from '../../shared/types/shop-profile'
 import { formatDate } from '../../shared/i18n'
+import { downloadText } from '../../shared/export/download'
+import {
+  buildProductsCsv,
+  buildProductsCsvTemplate,
+  parseProductsCsv,
+  type ProductCsvError,
+  type ProductCsvRow,
+} from './product-csv'
 import type { PluginRegistry } from '../../shared/registry/plugin-registry'
 import type { ProductField } from '../../shared/registry/plugin-types'
 import type { Brand, Category, ProductRow, Tax, Unit } from '../../shared/types/records'
@@ -491,7 +499,7 @@ export function productsView(options: ProductsViewOptions): HTMLElement {
   }
 
   const root = h('div', { class: 'flex w-full min-w-0 flex-col p-4' },
-    h('div', { class: 'mb-3 flex items-center gap-2' },
+    h('div', { class: 'mb-3 flex flex-wrap items-center gap-2' },
       h('div', { class: 'flex-1 max-w-sm' },
         searchInput('Search by name, SKU or barcode', (value) => {
           searchTerm = value
@@ -499,6 +507,10 @@ export function productsView(options: ProductsViewOptions): HTMLElement {
         })
       ),
       h('div', { class: 'flex-1' }),
+      ...(can('products.edit')
+        ? [button('Import', { variant: 'outline', icon: 'upload', onClick: () => openImport() })]
+        : []),
+      button('Export', { variant: 'outline', icon: 'download', onClick: () => void exportCsv() }),
       button('Quick add', { variant: 'outline', icon: 'bolt', onClick: () => openQuickAdd() }),
       button('Add product', { variant: 'primary', icon: 'add', onClick: () => void openForm(null) })
     ),
@@ -625,6 +637,241 @@ export function productsView(options: ProductsViewOptions): HTMLElement {
           void save()
         }
       })
+    }
+  }
+
+  // ── CSV import / export (spec §9 method 4) ──────────────────────────────
+
+  /** Every product, not the visible page — an export of 25 of 400 is a trap. */
+  async function fetchAllProducts(): Promise<ProductRow[]> {
+    const all: ProductRow[] = []
+    let pageCursor: string | null = null
+    do {
+      const page = await repos.products.list({ limit: 200, cursor: pageCursor })
+      all.push(...page.items)
+      pageCursor = page.nextCursor
+    } while (pageCursor && all.length < 10000)
+    return all
+  }
+
+  async function exportCsv(): Promise<void> {
+    try {
+      // The lookups turn `category_id` into "Grocery" in the file. They are
+      // fetched at mount, but an export clicked immediately must not race
+      // that fetch and write UUID-less blanks.
+      await loadLookups()
+      const all = await fetchAllProducts()
+      if (all.length === 0) {
+        toastError('There are no products to export yet.')
+        return
+      }
+      const csv = buildProductsCsv(all, {
+        categories: categoryNames,
+        brands: brandNames,
+        units: unitNames,
+      })
+      const day = new Date().toISOString().slice(0, 10)
+      const saved = downloadText(`products-${day}.csv`, csv, 'text/csv')
+      if (saved.ok) toastSuccess(`Exported ${all.length} product${all.length === 1 ? '' : 's'}`)
+      else toastError(saved.reason ?? 'The file could not be saved.')
+    } catch (error) {
+      toastError(translateError(error).message)
+    }
+  }
+
+  /**
+   * Import: explain → choose file → preview what will happen → do it.
+   *
+   * The preview step is the point. A shopkeeper about to create four hundred
+   * products deserves to see "400 ready, 3 rows skipped and why" *before*
+   * anything is written — an import that starts on file-pick cannot be
+   * backed out of politely.
+   */
+  function openImport(): void {
+    const dialog = modal({
+      title: 'Import products from CSV',
+      subtitle: 'One row per product. Only Name and Selling price are required.',
+      iconName: 'upload',
+      size: 'lg',
+    })
+
+    const file = h('input', { type: 'file', accept: '.csv,text/csv', class: 'sr-only' }) as HTMLInputElement
+    file.addEventListener('change', () => {
+      const chosen = file.files?.[0]
+      file.value = ''
+      if (chosen) void preview(chosen)
+    })
+
+    const intro = (): HTMLElement[] => [
+      h('div', { class: 'space-y-3 text-sm text-content-muted' },
+        h('p', {
+          text:
+            'Categories and brands named in the file are created if they do not exist. ' +
+            'Units are matched by name or symbol; a unit the shop does not have is left blank rather than invented.',
+        }),
+        h('p', {
+          text:
+            'Broken rows are skipped and reported with their line numbers — one typo never costs the whole file.',
+        })
+      ),
+      h('div', { class: 'mt-4 flex items-center justify-end gap-2' },
+        button('Download template', {
+          variant: 'outline',
+          icon: 'download',
+          onClick: () => {
+            const saved = downloadText('products-template.csv', buildProductsCsvTemplate(), 'text/csv')
+            if (!saved.ok) toastError(saved.reason ?? 'The file could not be saved.')
+          },
+        }),
+        button('Choose file', { variant: 'primary', icon: 'folder_open', onClick: () => file.click() })
+      ),
+      file,
+    ]
+
+    dialog.body.replaceChildren(...intro())
+
+    async function preview(chosen: File): Promise<void> {
+      let parsed: { rows: ProductCsvRow[]; errors: ProductCsvError[] }
+      try {
+        parsed = parseProductsCsv(await chosen.text())
+      } catch {
+        toastError('That file could not be read.')
+        return
+      }
+      const { rows: toImport, errors } = parsed
+
+      const errorList =
+        errors.length > 0
+          ? h('div', { class: 'rounded-md border border-border bg-surface-muted p-3 text-sm' },
+              h('p', { class: 'font-medium text-content mb-1', text: `${errors.length} row${errors.length === 1 ? '' : 's'} will be skipped:` }),
+              ...errors.slice(0, 8).map((problem) =>
+                h('p', { class: 'text-content-muted', text: `Line ${problem.line}: ${problem.message}` })
+              ),
+              ...(errors.length > 8
+                ? [h('p', { class: 'text-content-subtle', text: `…and ${errors.length - 8} more.` })]
+                : [])
+            )
+          : null
+
+      const status = h('p', { class: 'text-sm text-content-muted' })
+
+      const importButton = button(`Import ${toImport.length} product${toImport.length === 1 ? '' : 's'}`, {
+        variant: 'primary',
+        icon: 'check',
+        onClick: () => void run(),
+      })
+      if (toImport.length === 0) importButton.setAttribute('disabled', 'true')
+
+      dialog.body.replaceChildren(
+        h('div', { class: 'space-y-3' },
+          h('p', { class: 'text-sm text-content', text: `“${chosen.name}” — ${toImport.length} product${toImport.length === 1 ? '' : 's'} ready to import.` }),
+          ...(errorList ? [errorList] : []),
+          status,
+          h('div', { class: 'flex items-center justify-end gap-2' },
+            button('Cancel', { variant: 'ghost', onClick: () => dialog.close() }),
+            importButton
+          )
+        ),
+        file
+      )
+
+      async function run(): Promise<void> {
+        importButton.setAttribute('disabled', 'true')
+
+        // Name → id caches, so "Grocery" is looked up (or created) once for
+        // the whole file, not once per row.
+        const categoryIds = new Map(Object.entries(categoryNames).map(([id, name]) => [name.toLowerCase(), id]))
+        const brandIds = new Map(Object.entries(brandNames).map(([id, name]) => [name.toLowerCase(), id]))
+        const unitIds = new Map<string, string>()
+        try {
+          const units = await repos.catalog.listUnits()
+          for (const unit of units) {
+            unitIds.set(unit.name.toLowerCase(), unit.id)
+            if (unit.symbol) unitIds.set(unit.symbol.toLowerCase(), unit.id)
+          }
+        } catch {
+          /* units stay unmatched; the products still import */
+        }
+
+        const resolveCategory = async (name: string): Promise<string | null> => {
+          const hit = categoryIds.get(name.toLowerCase())
+          if (hit) return hit
+          try {
+            const created = await repos.catalog.createCategory(name)
+            categoryIds.set(name.toLowerCase(), created.id)
+            categoryNames[created.id] = created.name
+            return created.id
+          } catch {
+            return null
+          }
+        }
+        const resolveBrand = async (name: string): Promise<string | null> => {
+          const hit = brandIds.get(name.toLowerCase())
+          if (hit) return hit
+          try {
+            const created = await repos.catalog.createBrand(name)
+            brandIds.set(name.toLowerCase(), created.id)
+            brandNames[created.id] = created.name
+            return created.id
+          } catch {
+            return null
+          }
+        }
+
+        let done = 0
+        const failed: ProductCsvError[] = []
+        for (const row of toImport) {
+          status.textContent = `Importing ${done + 1} of ${toImport.length}…`
+          try {
+            await repos.products.create({
+              name: row.name,
+              sku: row.sku,
+              description: row.description,
+              category_id: row.category ? await resolveCategory(row.category) : null,
+              brand_id: row.brand ? await resolveBrand(row.brand) : null,
+              unit_id: row.unit ? (unitIds.get(row.unit.toLowerCase()) ?? null) : null,
+              selling_price: row.selling_price,
+              cost_price: row.cost_price,
+              tax_inclusive: row.tax_inclusive,
+              reorder_point: row.reorder_point,
+              track_stock: row.track_stock,
+              allow_negative: row.allow_negative,
+              is_active: row.is_active,
+              image_url: row.image_url,
+              metadata: {},
+            })
+            done += 1
+          } catch (error) {
+            failed.push({ line: row.line, message: `"${row.name}": ${translateError(error).message}` })
+          }
+        }
+
+        if (failed.length === 0) {
+          dialog.close()
+          toastSuccess(`Imported ${done} product${done === 1 ? '' : 's'}`)
+        } else {
+          // Partial success is reported as exactly that — the dialog stays,
+          // names names, and the shop decides what to do about the rest.
+          status.textContent = ''
+          dialog.body.replaceChildren(
+            h('div', { class: 'space-y-3' },
+              h('p', { class: 'text-sm text-content', text: `Imported ${done} of ${toImport.length}. ${failed.length} failed:` }),
+              h('div', { class: 'rounded-md border border-border bg-surface-muted p-3 text-sm' },
+                ...failed.slice(0, 8).map((problem) =>
+                  h('p', { class: 'text-content-muted', text: `Line ${problem.line}: ${problem.message}` })
+                ),
+                ...(failed.length > 8
+                  ? [h('p', { class: 'text-content-subtle', text: `…and ${failed.length - 8} more.` })]
+                  : [])
+              ),
+              h('div', { class: 'flex items-center justify-end gap-2' },
+                button('Close', { variant: 'primary', onClick: () => dialog.close() })
+              )
+            )
+          )
+        }
+        await load(true)
+      }
     }
   }
 }
