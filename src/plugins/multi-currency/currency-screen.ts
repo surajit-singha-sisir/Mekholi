@@ -35,7 +35,7 @@ export function createCurrencyScreen(host: CurrencyScreenHost): HTMLElement {
   const base = host.base.trim().toUpperCase() || 'BDT'
   let config = normalise(host.config(), base)
 
-  const root = h('div', { class: 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4' })
+  const root = h('div', { class: 'flex w-full flex-col gap-4 p-4' })
   const statusSlot = h('div', {})
 
   // ── Status ────────────────────────────────────────────────────────────

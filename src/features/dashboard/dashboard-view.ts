@@ -58,7 +58,7 @@ export function dashboardView(registry: PluginRegistry, options: DashboardOption
 
   const root = h(
     'div',
-    { class: 'mx-auto max-w-7xl space-y-4 p-4 lg:p-6' },
+    { class: 'w-full space-y-4 p-4 lg:p-6' },
     // Greeting
     h(
       'div',

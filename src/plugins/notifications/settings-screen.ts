@@ -52,7 +52,7 @@ const WATCHERS: Watcher[] = [
 export function createNotificationsSettings(host: SettingsScreenHost): HTMLElement {
   let prefs = { ...DEFAULT_PREFS, ...host.prefs() }
 
-  const root = h('div', { class: 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4' })
+  const root = h('div', { class: 'flex w-full flex-col gap-4 p-4' })
 
   function persist(message: string): void {
     void host.save(prefs).then(() => toastSuccess(message))

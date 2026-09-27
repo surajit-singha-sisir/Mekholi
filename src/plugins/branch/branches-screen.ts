@@ -40,7 +40,7 @@ export interface BranchesScreenOptions {
 export function createBranchesScreen(options: BranchesScreenOptions): HTMLElement {
   const { db, currency } = options
 
-  const root = h('div', { class: 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4' })
+  const root = h('div', { class: 'flex w-full flex-col gap-4 p-4' })
   const listSlot = h('div', {})
 
   async function reload(): Promise<void> {

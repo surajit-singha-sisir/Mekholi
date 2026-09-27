@@ -91,7 +91,7 @@ export function pluginsView(): HTMLElement {
   // Wider than the rest of the app's settings screens on purpose: a plugin
   // card carries a cover, a description, what it contributes, what it costs
   // and its controls, and squeezing that into 64rem wrapped every line.
-  const root = h('div', { class: 'mx-auto flex w-full max-w-7xl flex-col' }, headerSlot, listSlot)
+  const root = h('div', { class: 'flex w-full flex-col' }, headerSlot, listSlot)
 
   const searchBox = searchInput('Search plugins…', (value) => {
     search = value

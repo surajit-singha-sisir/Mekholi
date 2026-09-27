@@ -89,7 +89,7 @@ export function printerSetupView(options: PrinterSetupOptions = {}): HTMLElement
   const caps = capabilities()
 
   const root = h('div', { class: 'w-full min-w-0 p-3 sm:p-6' })
-  const content = h('div', { class: 'mx-auto w-full min-w-0 max-w-3xl space-y-4' })
+  const content = h('div', { class: 'w-full min-w-0 space-y-4' })
   root.append(content)
 
   function persist(): void {

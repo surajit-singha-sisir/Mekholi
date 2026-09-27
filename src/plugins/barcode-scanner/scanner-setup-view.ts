@@ -48,7 +48,7 @@ export function scannerSetupView(): HTMLElement {
   let stop: (() => void) | null = null
 
   const root = h('div', { class: 'w-full min-w-0 p-3 sm:p-6' })
-  const content = h('div', { class: 'mx-auto w-full min-w-0 max-w-3xl space-y-4' })
+  const content = h('div', { class: 'w-full min-w-0 space-y-4' })
   root.append(content)
 
   const testField = input({ placeholder: 'Click here, then scan a product…', autocomplete: 'off' })

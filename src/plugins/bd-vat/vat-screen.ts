@@ -25,7 +25,7 @@ export interface VatScreenOptions {
 export function createVatScreen(options: VatScreenOptions): HTMLElement {
   let design = invoiceDesign()
 
-  const root = h('div', { class: 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4' })
+  const root = h('div', { class: 'flex w-full flex-col gap-4 p-4' })
   const statusSlot = h('div', {})
 
   // ── Status ────────────────────────────────────────────────────────────

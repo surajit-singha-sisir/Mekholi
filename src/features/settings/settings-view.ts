@@ -41,7 +41,7 @@ export function settingsView(): HTMLElement {
   let sideLoadError: string | null = null
 
   const root = h('div', { class: 'p-3 sm:p-6' })
-  const content = h('div', { class: 'mx-auto max-w-5xl space-y-4' })
+  const content = h('div', { class: 'w-full space-y-4' })
 
   function notice(message: string): void {
     mount(content, emptyState(t('settings.loadFailed'), { description: message, iconName: 'error' }))

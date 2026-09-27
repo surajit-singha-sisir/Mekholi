@@ -25,7 +25,7 @@ export function rolesView(): HTMLElement {
   let loading = true
 
   const root = h('div', { class: 'p-3 sm:p-6' })
-  const content = h('div', { class: 'mx-auto max-w-5xl space-y-4' })
+  const content = h('div', { class: 'w-full space-y-4' })
 
   function render(): void {
     if (loading) {
