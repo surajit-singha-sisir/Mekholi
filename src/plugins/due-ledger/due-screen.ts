@@ -53,7 +53,8 @@ const AGE_FILTERS: readonly { key: Aging | 'all'; label: string }[] = [
 export function createDueScreen(options: DueScreenOptions): HTMLElement {
   const { db, currency } = options
 
-  const root = h('div', { class: 'mx-auto flex w-full max-w-5xl flex-col gap-4 p-4' })
+  // Full width by request: a ten-column ledger earns the whole screen.
+  const root = h('div', { class: 'flex w-full flex-col gap-4 p-4' })
   const statsSlot = h('div', {})
   const toolbarSlot = h('div', {})
   const tableSlot = h('div', {})
