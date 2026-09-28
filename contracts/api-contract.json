@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 67,
+  "migrations": 68,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
