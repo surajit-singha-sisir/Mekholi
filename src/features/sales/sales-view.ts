@@ -21,6 +21,8 @@
 import { h, mount } from '../../components/ui/h'
 import { button, spinner } from '../../components/ui/button'
 import { badge, card, emptyState } from '../../components/ui/card'
+import { dataTable } from '../../components/ui/table'
+import { exportToolbar, sortReportRows } from '../../components/ui/table-tools'
 import { input, select, field, textarea } from '../../components/ui/input'
 import { modal } from '../../components/feedback/modal'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
@@ -29,9 +31,9 @@ import { activeOrganization, can } from '../../app/state/session'
 import { salesFloor } from '../../app/state/sales-floor'
 import { pluginSaleTabsHost } from '../../app/plugin-slots'
 import type { PluginRegistry } from '../../shared/registry/plugin-registry'
-import { formatMoney, formatQty, milliToNumber, minorToNumber, type Milli, type Minor } from '../../shared/domain/money'
+import { formatMoney, formatQty, milliToNumber, minor, minorToNumber, type Milli, type Minor } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
-import type { SaleDetail, SalesListRow } from '../../shared/repositories/contracts'
+import type { ReportCell, ReportColumn, SaleDetail, SalesListRow } from '../../shared/repositories/contracts'
 import type { PaymentMethod } from '../../shared/types/records'
 import { buildReceipt, printReceipt, saveReceiptFile, showReceipt, type ReceiptData } from '../pos'
 
@@ -63,10 +65,77 @@ export function salesView(options: SalesViewOptions): HTMLElement {
   let rows: SalesListRow[] = []
   let cursor: string | null = null
   let loading = false
+  let sortKey: string | undefined
+  let sortDir: 'asc' | 'desc' = 'desc'
 
   const root = h('div', { class: 'flex w-full min-w-0 flex-col' })
+  const summarySlot = h('div', { class: 'grid grid-cols-2 gap-2 p-3 sm:grid-cols-4' })
   const listSlot = h('div', { class: 'p-3' })
   const footerSlot = h('div', { class: 'border-t border-border p-3' })
+
+  // The branch column exists only while the Branch plugin does — a
+  // one-branch shop should not read "Main Store" down a whole column.
+  const SALES_COLUMNS: readonly ReportColumn[] = [
+    { key: 'invoice', label: 'Invoice', type: 'text' },
+    { key: 'customer', label: 'Customer', type: 'text' },
+    ...(registry.loadedIds.includes('branch')
+      ? ([{ key: 'branch', label: 'Branch', type: 'text' }] as ReportColumn[])
+      : []),
+    { key: 'when', label: 'When', type: 'date' },
+    { key: 'total', label: 'Total', type: 'money', align: 'right' },
+    { key: 'paid', label: 'Paid', type: 'money', align: 'right' },
+    { key: 'due', label: 'Due', type: 'money', align: 'right' },
+    { key: 'status', label: 'Status', type: 'status' },
+  ]
+
+  function toReportRow(row: SalesListRow): Record<string, ReportCell> {
+    const due = Math.max(0, Number(row.total) - Number(row.paidTotal))
+    return {
+      id: row.id,
+      invoice: row.invoiceNo,
+      customer: row.customerName ?? 'Walk-in',
+      branch: row.branchName,
+      when: row.createdAt,
+      total: Number(row.total),
+      paid: Number(row.paidTotal),
+      due,
+      status: row.status,
+    }
+  }
+
+  function visibleRows(): Record<string, ReportCell>[] {
+    const mapped = rows.map(toReportRow)
+    return sortKey ? sortReportRows(SALES_COLUMNS, mapped, sortKey, sortDir) : mapped
+  }
+
+  function renderSummary(): void {
+    const sold = rows.reduce((sum, row) => sum + Number(row.total), 0)
+    const collected = rows.reduce((sum, row) => sum + Number(row.paidTotal), 0)
+    const outstanding = rows.reduce(
+      (sum, row) => sum + Math.max(0, Number(row.total) - Number(row.paidTotal)),
+      0
+    )
+    const stat = (label: string, value: string, iconName: string, warn?: boolean): HTMLElement =>
+      card(
+        h(
+          'div',
+          { class: 'flex items-start justify-between gap-2' },
+          h('p', { class: 'text-xs font-medium text-content-muted', text: label }),
+          h('span', { class: 'material-symbols-rounded text-content-subtle', 'aria-hidden': 'true', text: iconName })
+        ),
+        h('p', {
+          class: `mt-1 text-xl font-semibold tabular-nums ${warn ? 'text-warning' : 'text-content'}`,
+          text: value,
+        })
+      )
+    mount(
+      summarySlot,
+      stat('Sales shown', String(rows.length), 'receipt_long'),
+      stat('Sold', formatMoney(minor(sold), { currency }), 'payments'),
+      stat('Collected', formatMoney(minor(collected), { currency }), 'account_balance_wallet'),
+      stat('Due', formatMoney(minor(outstanding), { currency }), 'schedule', outstanding > 0)
+    )
+  }
 
   const searchField = input({
     type: 'search',
@@ -145,6 +214,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
   }
 
   function render(): void {
+    renderSummary()
     if (rows.length === 0) {
       mount(
         listSlot,
@@ -159,43 +229,51 @@ export function salesView(options: SalesViewOptions): HTMLElement {
       return
     }
 
+    const visible = visibleRows()
+    const soldTotal = visible.reduce((sum, row) => sum + Number(row['total'] ?? 0), 0)
+    const dueTotal = visible.reduce((sum, row) => sum + Number(row['due'] ?? 0), 0)
+
+    const toolbar = exportToolbar({
+      title: 'Sales',
+      filename: 'sales',
+      columns: SALES_COLUMNS,
+      currency,
+      rows: () => visibleRows(),
+      subtitle: () =>
+        `${visible.length} sale${visible.length === 1 ? '' : 's'} · ` +
+        `${formatMoney(minor(soldTotal), { currency, digits: 'latin', convert: false })} sold`,
+      footerNote: activeOrganization()?.name ?? 'Mekholi POS',
+      onNotice: (message, bad) => (bad ? toastError(message) : toastSuccess(message)),
+    })
+
     mount(
       listSlot,
       h(
         'div',
-        { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
-        ...rows.map((row) =>
-          h(
-            'button',
-            {
-              type: 'button',
-              class:
-                'flex w-full min-h-[64px] items-center gap-3 border-b border-border p-3 text-left ' +
-                'last:border-b-0 hover:bg-surface-muted focus-visible:outline-none ' +
-                'focus-visible:ring-2 focus-visible:ring-ring',
-              onclick: () => openDetail(row.id),
+        { class: 'flex flex-col gap-3' },
+        h('div', { class: 'flex justify-end' }, toolbar),
+        h(
+          'div',
+          { class: 'overflow-hidden rounded-xl border border-border bg-surface' },
+          dataTable({
+            columns: SALES_COLUMNS,
+            rows: visible,
+            totals: { total: soldTotal, paid: soldTotal - dueTotal, due: dueTotal },
+            currency,
+            sort: sortKey,
+            dir: sortDir,
+            onSort: (key) => {
+              if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+              else {
+                sortKey = key
+                const type = SALES_COLUMNS.find((c) => c.key === key)?.type
+                sortDir = type === 'money' || type === 'date' ? 'desc' : 'asc'
+              }
+              render()
             },
-            h(
-              'div',
-              { class: 'min-w-0 flex-1' },
-              h(
-                'div',
-                { class: 'flex items-center gap-2' },
-                h('span', { class: 'font-medium tabular-nums text-content', text: row.invoiceNo }),
-                badge(row.status.replace(/_/g, ' ').toLowerCase(), {
-                  tone: STATUS_TONES[row.status] ?? 'neutral',
-                })
-              ),
-              h('p', {
-                class: 'mt-0.5 truncate text-xs text-content-muted',
-                text: [row.customerName ?? 'Walk-in', formatWhen(row.createdAt)].join(' · '),
-              })
-            ),
-            h('span', {
-              class: 'shrink-0 text-sm font-semibold tabular-nums text-content',
-              text: formatMoney(row.total, { currency }),
-            })
-          )
+            onRowClick: (reportRow) => void openDetail(String(reportRow['id'])),
+            pageSize: 50,
+          })
         )
       )
     )
@@ -585,6 +663,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
   mount(
     root,
     h('div', { class: 'border-b border-border px-3 pt-3 pb-3' }, h('h1', { class: 'text-lg font-semibold text-content', text: 'Sales' })),
+    summarySlot,
     toolbar,
     listSlot,
     footerSlot

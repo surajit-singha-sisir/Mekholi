@@ -166,6 +166,29 @@ describe('an invoice, months after the sale', () => {
     expect(view.textContent).not.toContain('Main Store')
   })
 
+  it('the sales book is a table: trade columns, totals and the takings summary', async () => {
+    const view = salesView({ registry: emptyRegistry() })
+    document.body.append(view)
+    await settle()
+
+    // Summary cards over the loaded rows.
+    const text = view.textContent ?? ''
+    expect(text).toContain('Sales shown')
+    expect(text).toContain('Sold')
+    expect(text).toContain('Collected')
+    expect(text).toContain('450.00') // ৳450.00 total, fully collected
+
+    // The universal table with the columns a sales book needs.
+    const headers = [...view.querySelectorAll('th')].map((th) => (th.textContent ?? '').trim())
+    for (const label of ['Invoice', 'Customer', 'When', 'Total', 'Paid', 'Due', 'Status']) {
+      expect(headers.join('|')).toContain(label)
+    }
+    // A fully paid sale owes nothing.
+    const row = [...view.querySelectorAll('tbody tr')].find((tr) => tr.textContent?.includes('INV-0007'))
+    expect(row).toBeTruthy()
+    expect(row!.textContent).toContain('Walk-in')
+  })
+
   it('offers all four ways to hand it over', async () => {
     await openSale()
 
