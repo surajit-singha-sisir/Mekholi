@@ -15,7 +15,7 @@
 
 import './styles/base.css'
 import { env } from './app/env'
-import { Router, appPath, restoreInitialLocation, type Route } from './app/router/router'
+import { Router, appPath, restoreInitialLocation, routeHref, type Route } from './app/router/router'
 import { setNavigator } from './app/router/navigation'
 import { appShell, type AppShell } from './features/layout/app-shell'
 import { loginView, notConfiguredView } from './features/auth/login-view'
@@ -66,6 +66,7 @@ import {
   developerUsersView,
   developerLogsView,
 } from './developer/views'
+import { controlPlane } from './developer/control-plane'
 
 // `<html lang>` before the first paint, so Bangla picks the right font from
 // the very first frame rather than after the shell redraws.
@@ -401,6 +402,13 @@ router.addAll([...routes, ...placeholders])
 
 // ── 5. Shell mount and teardown ───────────────────────────────────────────
 
+function endDeveloperSupport(): void {
+  const organizationId = sessionStore.state.activeOrganizationId
+  void controlPlane.endSupport().finally(() => {
+    window.location.assign(routeHref(organizationId ? `/developer/shops/${organizationId}` : '/developer/shops'))
+  })
+}
+
 function enterApp(): void {
   const developerMode =
     sessionStore.state.developer?.enabled === true &&
@@ -485,6 +493,7 @@ function enterApp(): void {
     bus: eventBus,
     onNavigate: (path) => router.navigate(path),
     onSignOut: () => void leaveApp(),
+    onEndSupport: endDeveloperSupport,
     outlet,
   })
 
@@ -511,6 +520,7 @@ onLocaleChange(() => {
     bus: eventBus,
     onNavigate: (path) => router.navigate(path),
     onSignOut: () => void leaveApp(),
+    onEndSupport: endDeveloperSupport,
     outlet,
   })
   root.replaceChildren(shell.el)

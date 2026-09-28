@@ -483,6 +483,9 @@ function normalizeMembership(raw: Partial<OrganizationMembership>): Organization
     role_keys: Array.isArray(raw.role_keys) ? raw.role_keys : [],
     is_owner: raw.is_owner === true,
     permissions: Array.isArray(raw.permissions) ? raw.permissions : [],
+    is_support_session: raw.is_support_session === true,
+    support_session_id: raw.support_session_id ?? null,
+    support_expires_at: raw.support_expires_at ?? null,
   }
 }
 

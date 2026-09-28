@@ -42,6 +42,10 @@ export interface OrganizationMembership {
    * `sales.create`, not `*`, so the client needs only a Set lookup.
    */
   permissions: string[]
+  /** True only for a short-lived, audited developer support grant. */
+  is_support_session?: boolean
+  support_session_id?: string | null
+  support_expires_at?: string | null
 }
 
 export type SessionStatus = 'loading' | 'anonymous' | 'authenticated' | 'error'

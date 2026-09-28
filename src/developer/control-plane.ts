@@ -129,4 +129,15 @@ export const controlPlane = {
   async command<T = Record<string, unknown>>(action: string, payload: Record<string, unknown>): Promise<T> {
     return unwrap(await client().rpc('developer_command', { p_action: action, p_payload: payload })) as T
   },
+  async startSupport(organizationId: string, reason: string, ticket = ''): Promise<{ id: string; expires_at: string }> {
+    return unwrap(await client().rpc('developer_support_start', {
+      p_organization_id: organizationId,
+      p_reason: reason,
+      p_ticket: ticket || null,
+      p_minutes: 30,
+    })) as { id: string; expires_at: string }
+  },
+  async endSupport(): Promise<{ ended: boolean; organization_id?: string }> {
+    return unwrap(await client().rpc('developer_support_end')) as { ended: boolean; organization_id?: string }
+  },
 }

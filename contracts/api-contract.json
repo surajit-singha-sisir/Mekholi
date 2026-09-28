@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 68,
+  "migrations": 69,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -408,6 +408,35 @@
     "developer_summary": {
       "returns": "jsonb",
       "params": []
+    },
+    "developer_support_end": {
+      "returns": "jsonb",
+      "params": []
+    },
+    "developer_support_start": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_reason",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_ticket",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_minutes",
+          "type": "integer",
+          "required": false
+        }
+      ]
     },
     "developer_users": {
       "returns": "jsonb",

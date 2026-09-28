@@ -3,6 +3,8 @@ import { button, spinner } from '../components/ui/button'
 import { card, badge, emptyState } from '../components/ui/card'
 import { input, select, textarea } from '../components/ui/input'
 import { toastError, toastSuccess } from '../components/feedback/toast'
+import { routeHref } from '../app/router/router'
+import { rememberActiveOrganization } from '../app/platform/auth'
 import {
   controlPlane,
   type DeveloperBranch,
@@ -162,6 +164,26 @@ function editStaff(shop: DeveloperShop, staff: DeveloperStaff | null, reload: ()
   } })
 }
 
+function openShopSupport(shop: DeveloperShop, branch: DeveloperBranch | null = null): void {
+  openForm({
+    title: branch ? `Open ${branch.name} as developer` : `Open ${shop.name} as developer`,
+    description: 'This creates a 30-minute full-access support session. The shop UI shows a persistent warning and every action remains attributed to your developer account.',
+    submitLabel: 'Start support session',
+    fields: [
+      { key: 'reason', label: 'Reason for access', type: 'textarea', required: true },
+      { key: 'ticket', label: 'Ticket or reference (optional)' },
+    ],
+    onSubmit: async ({ reason, ticket }) => {
+      await controlPlane.startSupport(shop.id, reason ?? '', ticket ?? '')
+      rememberActiveOrganization(shop.id)
+      if (branch) {
+        try { localStorage.setItem(`mekholi.activeBranch.${shop.id}`, branch.id) } catch { /* private mode */ }
+      }
+      window.location.assign(routeHref('/'))
+    },
+  })
+}
+
 export function developerShopView(id: string): HTMLElement {
   const { root, body, actions } = page('Shop', 'Full tenant administration. Every change is recorded in the platform audit log.')
   let shop: DeveloperShop | null = null
@@ -171,6 +193,7 @@ export function developerShopView(id: string): HTMLElement {
       shop = await controlPlane.shop(id)
       const current = shop
       mount(actions,
+        button('Open shop dashboard', { variant: 'primary', icon: 'open_in_new', onClick: () => openShopSupport(current) }),
         button('Edit shop', { variant: 'secondary', icon: 'edit', onClick: () => openForm({ title: 'Edit shop', fields: [
           { key: 'name', label: 'Name', value: current.name, required: true }, { key: 'slug', label: 'Slug', value: current.slug, required: true },
           { key: 'shop_type', label: 'Shop type', value: current.shop_type ?? '' }, { key: 'currency', label: 'Currency', value: current.currency, required: true },
@@ -191,6 +214,7 @@ export function developerShopView(id: string): HTMLElement {
           ...((current.branches ?? []).map((branch) => h('div', { class: `flex flex-wrap items-center gap-3 border-b border-border p-4 last:border-0 ${branch.deleted_at ? 'opacity-50' : ''}` },
             h('div', { class: 'min-w-0 flex-1' }, h('p', { class: 'font-medium', text: branch.name }), h('p', { class: 'text-xs text-content-subtle', text: `${branch.code}${branch.address ? ` · ${branch.address}` : ''}` })),
             branch.is_primary ? badge('Primary', { tone: 'success' }) : null,
+            !branch.deleted_at ? button('Open shop', { variant: 'primary', onClick: () => openShopSupport(current, branch) }) : null,
             button('Edit', { variant: 'ghost', onClick: () => editBranch(current, branch, () => void load()) }),
             !branch.deleted_at && !branch.is_primary ? button('Remove', { variant: 'danger', onClick: () => { if (confirm(`Remove branch “${branch.name}”?`)) void controlPlane.command('branch.delete', { organization_id: id, id: branch.id }).then(() => { toastSuccess('Branch removed'); void load() }).catch((e: unknown) => toastError(e instanceof Error ? e.message : String(e))) } }) : null))),
         ),

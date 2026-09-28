@@ -34,6 +34,8 @@ export interface AppShellOptions {
   bus: EventBus
   onNavigate: (path: string) => void
   onSignOut: () => void
+  /** End a short-lived developer support session and return to control plane. */
+  onEndSupport?: () => void
   /** The element the router renders into. */
   outlet: HTMLElement
 }
@@ -55,7 +57,7 @@ export interface AppShell {
 }
 
 export function appShell(options: AppShellOptions): AppShell {
-  const { registry, bus, onNavigate, onSignOut, outlet } = options
+  const { registry, bus, onNavigate, onSignOut, onEndSupport, outlet } = options
 
   /**
    * The two homes of the same sidebar. The host owns the width — 240px docked
@@ -265,6 +267,17 @@ export function appShell(options: AppShellOptions): AppShell {
           profileMenu({ shopName, shopInitial, onNavigate, onSignOut })
         )
       ),
+
+      org?.is_support_session
+        ? h('div', { class: 'flex shrink-0 flex-wrap items-center gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2 text-sm text-content' },
+            icon('support_agent', 'text-warning'),
+            h('div', { class: 'min-w-0 flex-1' },
+              h('p', { class: 'font-semibold', text: 'Developer support session' }),
+              h('p', { class: 'text-xs text-content-muted', text: `Full shop access is audited${org.support_expires_at ? ` · expires ${new Date(org.support_expires_at).toLocaleTimeString()}` : ''}` })
+            ),
+            h('button', { type: 'button', class: 'min-h-9 rounded-md border border-warning/40 px-3 text-sm font-medium hover:bg-warning/10', text: 'Return to Developer', onclick: onEndSupport })
+          )
+        : null,
 
       // Router outlet
       // Same reason: without `min-h-0` the outlet's own height wins over
