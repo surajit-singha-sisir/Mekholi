@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 52,
+  "migrations": 66,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -336,6 +336,63 @@
           "required": true
         }
       ]
+    },
+    "developer_logs": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": false
+        },
+        {
+          "name": "p_plugin_key",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_limit",
+          "type": "integer",
+          "required": false
+        }
+      ]
+    },
+    "developer_plugins": {
+      "returns": "jsonb",
+      "params": []
+    },
+    "developer_session": {
+      "returns": "jsonb",
+      "params": []
+    },
+    "developer_shop": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_organization_id",
+          "type": "uuid",
+          "required": true
+        }
+      ]
+    },
+    "developer_shops": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_search",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_limit",
+          "type": "integer",
+          "required": false
+        }
+      ]
+    },
+    "developer_summary": {
+      "returns": "jsonb",
+      "params": []
     },
     "hold_sale": {
       "returns": "uuid",

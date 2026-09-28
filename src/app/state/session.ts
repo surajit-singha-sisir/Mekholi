@@ -46,6 +46,12 @@ export interface OrganizationMembership {
 
 export type SessionStatus = 'loading' | 'anonymous' | 'authenticated' | 'error'
 
+export interface DeveloperAccess {
+  enabled: boolean
+  roles: string[]
+  permissions: string[]
+}
+
 export interface SessionState {
   status: SessionStatus
   userId: string | null
@@ -54,6 +60,7 @@ export interface SessionState {
   activeOrganizationId: string | null
   /** Flattened permission keys from every role in the active organization. */
   permissions: string[]
+  developer?: DeveloperAccess
   error: string | null
 }
 
@@ -64,6 +71,7 @@ export const EMPTY_SESSION: SessionState = {
   organizations: [],
   activeOrganizationId: null,
   permissions: [],
+  developer: { enabled: false, roles: [], permissions: [] },
   error: null,
 }
 

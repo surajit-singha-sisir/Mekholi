@@ -3582,7 +3582,13 @@ for (const file of srcFiles) {
 }
 
 const catalogueRows = await q('select key from public.permissions')
-const catalogue = new Set(catalogueRows.map((r) => r.key))
+const platformPermissionRows = await q(`
+  select distinct unnest(permissions) as key from public.platform_roles
+`)
+const catalogue = new Set([
+  ...catalogueRows.map((r) => r.key),
+  ...platformPermissionRows.map((r) => r.key),
+])
 
 // Plugin permissions are a different case from core ones, and the difference
 // is the point of the namespace rule (docs/07 §3): a plugin's keys reach the

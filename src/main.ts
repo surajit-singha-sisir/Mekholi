@@ -15,7 +15,7 @@
 
 import './styles/base.css'
 import { env } from './app/env'
-import { Router, type Route } from './app/router/router'
+import { Router, appPath, type Route } from './app/router/router'
 import { setNavigator } from './app/router/navigation'
 import { appShell, type AppShell } from './features/layout/app-shell'
 import { loginView, notConfiguredView } from './features/auth/login-view'
@@ -57,6 +57,14 @@ import { translateError } from './app/platform/errors'
 import { h } from './components/ui/h'
 import { button } from './components/ui/button'
 import { emptyState } from './components/ui/card'
+import { developerShell, type DeveloperShell } from './developer/shell'
+import {
+  developerOverviewView,
+  developerShopsView,
+  developerShopView,
+  developerPluginsView,
+  developerLogsView,
+} from './developer/views'
 
 // `<html lang>` before the first paint, so Bangla picks the right font from
 // the very first frame rather than after the shell redraws.
@@ -89,6 +97,7 @@ const registry = pluginRegistry
 const unmountToasts = mountToasts()
 
 let shell: AppShell | null = null
+let devShell: DeveloperShell | null = null
 
 /** Installed in enterApp, released in leaveApp, so a re-login re-subscribes. */
 let unwatchOrganization: () => void = () => {}
@@ -172,6 +181,36 @@ const routes: Route[] = [
       return h('div', { class: 'p-6 text-sm text-content-muted', text: 'Taking you there…' })
     },
   })),
+  {
+    path: '/developer',
+    title: 'Platform overview',
+    permission: 'developer.dashboard.view',
+    render: () => developerOverviewView((path) => router.navigate(path)),
+  },
+  {
+    path: '/developer/shops',
+    title: 'Shops',
+    permission: 'platform.shops.view',
+    render: () => developerShopsView((path) => router.navigate(path)),
+  },
+  {
+    path: '/developer/shops/:shopId',
+    title: 'Shop details',
+    permission: 'platform.shops.view',
+    render: (ctx) => developerShopView(ctx.params.shopId ?? ''),
+  },
+  {
+    path: '/developer/plugins',
+    title: 'Plugin catalogue',
+    permission: 'platform.plugins.view',
+    render: () => developerPluginsView(),
+  },
+  {
+    path: '/developer/logs',
+    title: 'Platform logs',
+    permission: 'platform.logs.view',
+    render: () => developerLogsView(),
+  },
   {
     path: '/forbidden',
     title: 'Not permitted',
@@ -288,21 +327,34 @@ async function renderPluginRoute(
   })
 }
 
+const hasDeveloperPermission = (required: string | undefined): boolean => {
+  if (!required) return true
+  const held = new Set(sessionStore.state.developer?.permissions ?? [])
+  return held.has('*') || held.has(required) || held.has(`${required.split('.')[0]}.*`)
+}
+
 const router = new Router({
   container: outlet,
   fallback: '/',
   guard: (route) => {
     if (sessionStore.state.status !== 'authenticated') return null
+    if (route.path.startsWith('/developer')) {
+      return sessionStore.state.developer?.enabled === true && hasDeveloperPermission(route.permission)
+        ? null
+        : '/forbidden'
+    }
     if (needsOnboarding()) return route.path === '/onboarding' ? null : '/onboarding'
     if (can(route.permission)) return null
     return '/forbidden'
   },
   onNavigate: (route, ctx) => {
     shell?.setTitle(route.title)
+    devShell?.setTitle(route.title)
     // The sidebar highlight follows every navigation — clicks, back/forward,
     // and plugin `ui.navigate` events alike. Without this it froze on
     // whatever screen the app happened to load on.
     shell?.setActivePath(ctx.path)
+    devShell?.setActivePath(ctx.path)
   },
   onError: (error, route) => {
     const translated = translateError(error)
@@ -337,6 +389,25 @@ router.addAll([...routes, ...placeholders])
 // ── 5. Shell mount and teardown ───────────────────────────────────────────
 
 function enterApp(): void {
+  const developerMode =
+    sessionStore.state.developer?.enabled === true &&
+    (appPath().startsWith('/developer') || sessionStore.state.organizations.length === 0)
+
+  if (developerMode) {
+    shell = null
+    devShell = developerShell({
+      outlet,
+      onNavigate: (path) => router.navigate(path),
+      onSignOut: () => void leaveApp(),
+    })
+    root.replaceChildren(devShell.el)
+    document.body.classList.add('app-locked')
+    if (!appPath().startsWith('/developer')) router.navigate('/developer', { replace: true })
+    router.start()
+    return
+  }
+
+  devShell = null
   // Branch, warehouse and register are resolved here rather than lazily by
   // each screen: the POS cannot render a priced product without knowing which
   // stock room to read, and three screens resolving it independently is three
@@ -439,7 +510,9 @@ async function leaveApp(): Promise<void> {
   unwatchFloorWarm = () => {}
   await offlineRuntime()?.stop()
   shell?.el.remove()
+  devShell?.el.remove()
   shell = null
+  devShell = null
   unwatchOrganization()
   unwatchStockAlerts()
   unwatchVisibility()

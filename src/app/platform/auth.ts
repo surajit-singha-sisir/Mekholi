@@ -222,11 +222,19 @@ export async function loadSessionPayload(): Promise<void> {
     if (!missingInvitationRpc) throw invitationError
   }
 
-  const { data, error } = await supabase.rpc('session_payload')
+  const [{ data, error }, developerResult] = await Promise.all([
+    supabase.rpc('session_payload'),
+    supabase.rpc('developer_session'),
+  ])
   if (error) throw error
 
   const payload = normalizePayload(data)
   const activeId = chooseActiveOrganization(payload.organizations)
+  const developerRaw = developerResult.error ? null : developerResult.data
+  const developerRecord =
+    typeof developerRaw === 'object' && developerRaw !== null
+      ? (developerRaw as { enabled?: boolean; roles?: unknown; permissions?: unknown })
+      : null
 
   sessionStore.set({
     status: 'authenticated',
@@ -235,6 +243,11 @@ export async function loadSessionPayload(): Promise<void> {
     organizations: payload.organizations,
     activeOrganizationId: activeId,
     permissions: permissionsFor(payload.organizations, activeId),
+    developer: {
+      enabled: developerRecord?.enabled === true,
+      roles: Array.isArray(developerRecord?.roles) ? developerRecord.roles.filter((v): v is string => typeof v === 'string') : [],
+      permissions: Array.isArray(developerRecord?.permissions) ? developerRecord.permissions.filter((v): v is string => typeof v === 'string') : [],
+    },
     error: null,
   })
 
