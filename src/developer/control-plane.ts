@@ -37,7 +37,43 @@ export interface DeveloperShop {
   has_plugin_error: boolean
   warehouse_count?: number
   register_count?: number
+  status?: 'active' | 'suspended' | 'closed'
+  locale?: string
+  staff?: DeveloperStaff[]
+  branches?: DeveloperBranch[]
+  roles?: Array<{ id: string; key: string; name: string }>
   plugins?: Array<{ key: string; version: string; enabled: boolean; status: string; last_error: string | null }>
+}
+
+export interface DeveloperStaff {
+  user_id: string
+  email: string
+  name: string | null
+  active: boolean
+  roles: Array<{ id: string; key: string; name: string; branch_id: string | null }>
+}
+
+export interface DeveloperBranch {
+  id: string
+  name: string
+  code: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  timezone: string | null
+  is_primary: boolean
+  deleted_at: string | null
+}
+
+export interface DeveloperUser {
+  id: string
+  email: string
+  name: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  banned_until: string | null
+  organization_count: number
+  is_developer: boolean
 }
 
 export interface DeveloperPlugin {
@@ -47,6 +83,8 @@ export interface DeveloperPlugin {
   version: string
   core_api_version: string
   description: string | null
+  dependencies: string[]
+  conflicts: string[]
   installed_shops: number
   enabled_shops: number
   error_shops: number
@@ -84,5 +122,11 @@ export const controlPlane = {
   },
   async logs(): Promise<DeveloperLog[]> {
     return unwrap(await client().rpc('developer_logs', { p_organization_id: null, p_plugin_key: null, p_limit: 200 })) as DeveloperLog[]
+  },
+  async users(search = ''): Promise<DeveloperUser[]> {
+    return unwrap(await client().rpc('developer_users', { p_search: search || null, p_limit: 200 })) as DeveloperUser[]
+  },
+  async command<T = Record<string, unknown>>(action: string, payload: Record<string, unknown>): Promise<T> {
+    return unwrap(await client().rpc('developer_command', { p_action: action, p_payload: payload })) as T
   },
 }

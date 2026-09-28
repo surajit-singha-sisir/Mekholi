@@ -11,6 +11,7 @@ export interface DeveloperShell {
 const NAV = [
   { path: '/developer', label: 'Overview', icon: 'space_dashboard' },
   { path: '/developer/shops', label: 'Shops', icon: 'storefront' },
+  { path: '/developer/users', label: 'Users', icon: 'group' },
   { path: '/developer/plugins', label: 'Plugins', icon: 'extension' },
   { path: '/developer/logs', label: 'Platform logs', icon: 'terminal' },
 ]

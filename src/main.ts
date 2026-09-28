@@ -63,6 +63,7 @@ import {
   developerShopsView,
   developerShopView,
   developerPluginsView,
+  developerUsersView,
   developerLogsView,
 } from './developer/views'
 
@@ -210,6 +211,12 @@ const routes: Route[] = [
     title: 'Plugin catalogue',
     permission: 'platform.plugins.view',
     render: () => developerPluginsView(),
+  },
+  {
+    path: '/developer/users',
+    title: 'Users',
+    permission: 'platform.users.view',
+    render: () => developerUsersView(),
   },
   {
     path: '/developer/logs',

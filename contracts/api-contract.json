@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 66,
+  "migrations": 67,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -337,6 +337,21 @@
         }
       ]
     },
+    "developer_command": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_action",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "p_payload",
+          "type": "jsonb",
+          "required": false
+        }
+      ]
+    },
     "developer_logs": {
       "returns": "jsonb",
       "params": [
@@ -393,6 +408,21 @@
     "developer_summary": {
       "returns": "jsonb",
       "params": []
+    },
+    "developer_users": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_search",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_limit",
+          "type": "integer",
+          "required": false
+        }
+      ]
     },
     "hold_sale": {
       "returns": "uuid",
