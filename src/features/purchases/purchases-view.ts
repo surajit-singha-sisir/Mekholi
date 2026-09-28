@@ -801,9 +801,15 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
   /** The buy-side product search: name, SKU or barcode, priced from the catalog. */
   function pickVariant(warehouseId: string): Promise<{ product: SellableProduct } | null> {
     return new Promise((resolve) => {
+      let settled = false
+      const finish = (value: { product: SellableProduct } | null): void => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
       const resultsSlot = h('div', { class: 'max-h-80 space-y-1 overflow-y-auto' })
       const searchBox = searchInput('Search a product to buy…', (value) => void run(value))
-      const dialog = modal({ title: 'Add an item', iconName: 'search', size: 'md', onClose: () => resolve(null) })
+      const dialog = modal({ title: 'Add an item', iconName: 'search', size: 'md', onClose: () => finish(null) })
 
       async function run(term: string): Promise<void> {
         if (term.trim().length < 2) {
@@ -825,8 +831,12 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
                   type: 'button',
                   class: 'flex w-full min-h-[56px] items-center justify-between gap-3 rounded-lg border border-border p-2.5 text-left hover:bg-surface-muted',
                   onclick: () => {
+                    // Resolve the selected product before closing. `close()`
+                    // invokes the modal's onClose callback synchronously; the
+                    // old order resolved this promise as null first, so every
+                    // product click silently behaved like Cancel.
+                    finish({ product })
                     dialog.close()
-                    resolve({ product })
                   },
                 },
                 h(
