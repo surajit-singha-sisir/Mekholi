@@ -13,15 +13,19 @@
         var path = window.location.pathname.indexOf(base) === 0
           ? window.location.pathname.slice(base.length)
           : window.location.pathname.replace(/^\/+/, '')
+        var destination = '/' + path + window.location.search
         try {
           sessionStorage.setItem('mekholi.page-redirect', JSON.stringify({
             path: '/' + path,
             search: window.location.search,
           }))
         } catch (_) {
-          // The app will safely open at the dashboard if storage is disabled.
+          // The query hand-off below also works when storage is disabled.
         }
-        window.location.replace(base)
+        // Carry the route in the URL as well as sessionStorage. Some privacy
+        // modes isolate storage on a 404 response; the explicit hand-off makes
+        // the deep link deterministic there and in automated browsers.
+        window.location.replace(base + '?__mekholi_route=' + encodeURIComponent(destination))
       })()
     </script>
   </head>

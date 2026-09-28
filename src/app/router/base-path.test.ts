@@ -133,6 +133,15 @@ describe('the GitHub Pages deep-link hand-off', () => {
     expect(authBootstrap).toBeGreaterThan(-1)
     expect(restoreCall).toBeLessThan(authBootstrap)
   })
+
+  it('carries the deep link explicitly when 404 storage is unavailable', () => {
+    const page404 = readFileSync(resolve(process.cwd(), 'public/404.html'), 'utf8')
+    const router = readFileSync(resolve(process.cwd(), 'src/app/router/router.ts'), 'utf8')
+
+    expect(page404).toContain('?__mekholi_route=')
+    expect(page404).toContain('encodeURIComponent(destination)')
+    expect(router).toContain("get('__mekholi_route')")
+  })
 })
 
 describe('the assets directory assumption', () => {

@@ -184,9 +184,22 @@ export function restoreInitialLocation(): void {
     return
   }
 
-  // GitHub Pages' 404 page stores the deep link here before returning to the
-  // entry point. sessionStorage is used only for this one hand-off and is
-  // removed immediately, so a later reload never replays an old route.
+  // GitHub Pages' 404 page returns to the entry point with the requested route
+  // in a short-lived query parameter. Restore it before auth renders login;
+  // replaceState removes the hand-off parameter from browser history.
+  try {
+    const carried = new URLSearchParams(window.location.search).get('__mekholi_route')
+    if (carried?.startsWith('/')) {
+      sessionStorage.removeItem('mekholi.page-redirect')
+      window.history.replaceState(null, '', absoluteRoute(carried))
+      return
+    }
+  } catch {
+    // Fall through to the storage hand-off for older deployments/browsers.
+  }
+
+  // sessionStorage remains as a compatibility fallback and is removed
+  // immediately, so a later reload never replays an old route.
   try {
     const saved = sessionStorage.getItem('mekholi.page-redirect')
     if (!saved) return
