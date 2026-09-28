@@ -52,6 +52,22 @@ export const LABEL_SIZES: readonly LabelSize[] = [
     showText: true,
   },
   {
+    id: 'a4-64x34',
+    label: 'A4 sheet — 64 × 34 mm (24 per sheet)',
+    widthMm: 64,
+    heightMm: 34,
+    page: 'a4',
+    showText: true,
+  },
+  {
+    id: 'roll-32x19',
+    label: 'Label roll — 32 × 19 mm',
+    widthMm: 32,
+    heightMm: 19,
+    page: 'roll',
+    showText: false,
+  },
+  {
     id: 'roll-40x30',
     label: 'Label roll — 40 × 30 mm',
     widthMm: 40,
@@ -67,16 +83,64 @@ export const LABEL_SIZES: readonly LabelSize[] = [
     page: 'roll',
     showText: true,
   },
+  {
+    id: 'roll-58x40',
+    label: 'Label roll — 58 × 40 mm',
+    widthMm: 58,
+    heightMm: 40,
+    page: 'roll',
+    showText: true,
+  },
+  {
+    id: 'roll-100x50',
+    label: 'Label roll — 100 × 50 mm (carton)',
+    widthMm: 100,
+    heightMm: 50,
+    page: 'roll',
+    showText: true,
+  },
 ]
 
 export function labelSize(id: string): LabelSize {
   return LABEL_SIZES.find((size) => size.id === id) ?? (LABEL_SIZES[0] as LabelSize)
 }
 
+/**
+ * The size on the packet the shop actually bought, when it matches none of
+ * ours. Clamped to what a barcode can survive: below 20mm wide the bars stop
+ * scanning, beyond 150mm it is a poster, not a label.
+ */
+export function customLabelSize(widthMm: number, heightMm: number, page: 'a4' | 'roll'): LabelSize {
+  const w = Math.min(150, Math.max(20, widthMm || 0))
+  const h = Math.min(150, Math.max(12, heightMm || 0))
+  return {
+    id: 'custom',
+    label: `Custom — ${w} × ${h} mm`,
+    widthMm: w,
+    heightMm: h,
+    page,
+    showText: h >= 25,
+  }
+}
+
 export interface SheetOptions {
   /** Printed small at the top of each label; empty omits the line. */
   shopName: string
   showPrice: boolean
+  /** Print the product name line. Default true — a label is for humans too. */
+  showName?: boolean
+  /** Human-readable SKU under the bars. Default: whatever the size allows. */
+  skuText?: boolean
+  /** Write "MRP" before the price, the way BD shelf tickets read. */
+  mrp?: boolean
+  /** One extra small line on every label — a phone number, an address. */
+  noteLine?: string
+  /** Pre-formatted date line ("Packed: 28 Sep 2026"); empty omits. */
+  packedDate?: string
+  /** 0.85 small · 1 normal · 1.2 large — every text line scales together. */
+  fontScale?: number
+  /** A4 only: leave this many sticker cells blank — a partly used sheet. */
+  skipCells?: number
 }
 
 function escapeHtml(value: string): string {
@@ -93,14 +157,26 @@ function labelHtml(item: LabelItem, size: LabelSize, options: SheetOptions): str
     options.shopName && size.heightMm >= 25
       ? `<div class="shop">${escapeHtml(options.shopName)}</div>`
       : ''
+  const nameLine =
+    options.showName === false ? '' : `<div class="name">${escapeHtml(item.name)}</div>`
   const priceLine =
-    options.showPrice && item.price ? `<div class="price">${escapeHtml(item.price)}</div>` : ''
+    options.showPrice && item.price
+      ? `<div class="price">${options.mrp ? 'MRP ' : ''}${escapeHtml(item.price)}</div>`
+      : ''
+  const noteLine = options.noteLine?.trim()
+    ? `<div class="note">${escapeHtml(options.noteLine.trim())}</div>`
+    : ''
+  const dateLine = options.packedDate?.trim()
+    ? `<div class="note">${escapeHtml(options.packedDate.trim())}</div>`
+    : ''
 
   return (
     `<div class="label">${shopLine}` +
-    `<div class="name">${escapeHtml(item.name)}</div>` +
-    `<div class="bars">${code128Svg(item.sku, { showText: size.showText, height: 40 })}</div>` +
+    nameLine +
+    `<div class="bars">${code128Svg(item.sku, { showText: options.skuText ?? size.showText, height: 40 })}</div>` +
     priceLine +
+    noteLine +
+    dateLine +
     `</div>`
   )
 }
@@ -115,12 +191,25 @@ export function buildLabelSheet(
   options: SheetOptions
 ): string {
   const labels: string[] = []
+  // A partly used sticker sheet: the first N cells are already gone, so the
+  // run starts where the stickers actually are. Blank cells carry no ink.
+  if (size.page === 'a4') {
+    const skip = Math.max(0, Math.min(200, Math.floor(options.skipCells ?? 0)))
+    for (let cell = 0; cell < skip; cell += 1) {
+      labels.push('<div class="label blank"></div>')
+    }
+  }
   for (const item of items) {
     if (!code128Encodable(item.sku)) continue
     for (let copy = 0; copy < Math.max(1, Math.floor(item.copies)); copy += 1) {
       labels.push(labelHtml(item, size, options))
     }
   }
+
+  // One knob scales every text line together — nobody sizes lines separately
+  // on a 21mm sticker; they want "a bit bigger" or "a bit smaller".
+  const scale = options.fontScale && options.fontScale > 0 ? options.fontScale : 1
+  const pt = (base: number): string => `${Math.round(base * scale * 10) / 10}pt`
 
   const page =
     size.page === 'a4'
@@ -153,12 +242,13 @@ export function buildLabelSheet(
     text-align: center;
     page-break-inside: avoid;
   }
-  .shop { font-size: 5.5pt; color: #000; white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .shop { font-size: ${pt(5.5)}; color: #000; white-space: nowrap; overflow: hidden; max-width: 100%; }
   .name {
-    font-size: 6.5pt; font-weight: 600; color: #000; line-height: 1.15;
+    font-size: ${pt(6.5)}; font-weight: 600; color: #000; line-height: 1.15;
     max-height: 2.3em; overflow: hidden; max-width: 100%;
   }
-  .price { font-size: 8pt; font-weight: 700; color: #000; }
+  .price { font-size: ${pt(8)}; font-weight: 700; color: #000; }
+  .note { font-size: ${pt(5)}; color: #000; white-space: nowrap; overflow: hidden; max-width: 100%; }
   .bars { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
   .bars svg { width: 100%; height: 100%; }
   ${page}
