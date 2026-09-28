@@ -300,6 +300,7 @@ describe('app shell', () => {
     const { el } = build()
 
     expect(el.textContent).toContain('Mekholi')
+    expect(el.querySelectorAll('img[alt="Mekholi logo"]').length).toBeGreaterThanOrEqual(3)
     expect(el.querySelector('[data-nav-id]')).toBeNull()
   })
 })

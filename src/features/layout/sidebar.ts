@@ -28,7 +28,7 @@ export interface SidebarOptions {
 const COLLAPSED_KEY = 'mekholi.sidebar.collapsed'
 
 export function sidebar(options: SidebarOptions): HTMLElement {
-  const { registry, shopName, shopInitial, onNavigate, onOpenPalette, onSignOut, footer } = options
+  const { registry, shopName, onNavigate, onOpenPalette, onSignOut, footer } = options
 
   const collapsedSections = new Set<string>(readCollapsed())
 
@@ -119,16 +119,13 @@ export function sidebar(options: SidebarOptions): HTMLElement {
     h(
       'div',
       { class: 'flex items-center gap-2.5 border-b border-border px-3 py-3' },
-      h(
-        'span',
-        {
-          class:
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary ' +
-            'text-sm font-bold text-primary-foreground',
-          text: shopInitial,
-          'aria-hidden': 'true',
-        }
-      ),
+      h('img', {
+        src: './icons/mekholi-192.png',
+        alt: 'Mekholi logo',
+        class: 'h-8 w-8 shrink-0 rounded-lg shadow-sm',
+        width: '32',
+        height: '32',
+      }),
       h(
         'div',
         { class: 'min-w-0 flex-1' },

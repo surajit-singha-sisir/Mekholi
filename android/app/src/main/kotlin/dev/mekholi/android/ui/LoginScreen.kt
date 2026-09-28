@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -17,12 +19,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.mekholi.android.BuildConfig
 import dev.mekholi.android.PosViewModel
+import dev.mekholi.android.R
 
 /**
  * Login, the way the web app does it: a GoTrue password grant.
@@ -47,6 +51,11 @@ fun LoginScreen(viewModel: PosViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Image(
+            painter = painterResource(R.drawable.mekholi_logo),
+            contentDescription = "Mekholi logo",
+            modifier = Modifier.size(96.dp),
+        )
         Text("Mekholi", style = MaterialTheme.typography.headlineMedium)
         Text("Sign in to this shop's till", style = MaterialTheme.typography.bodyMedium)
 

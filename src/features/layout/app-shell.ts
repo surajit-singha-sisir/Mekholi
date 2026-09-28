@@ -250,6 +250,13 @@ export function appShell(options: AppShellOptions): AppShell {
           class: 'lg:hidden',
           onClick: () => toggleDrawer(),
         }),
+        h('img', {
+          src: './icons/mekholi-192.png',
+          alt: 'Mekholi logo',
+          class: 'h-8 w-8 shrink-0 rounded-lg shadow-sm lg:hidden',
+          width: '32',
+          height: '32',
+        }),
         h(
           'div',
           { class: 'min-w-0 flex-1' },

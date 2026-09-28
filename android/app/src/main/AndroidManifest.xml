@@ -12,6 +12,8 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/mekholi_logo"
+        android:roundIcon="@drawable/mekholi_logo"
         android:label="Mekholi"
         android:supportsRtl="true"
         android:theme="@style/Theme.Mekholi">

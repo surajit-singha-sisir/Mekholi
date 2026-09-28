@@ -61,6 +61,13 @@ afterEach(() => {
 })
 
 describe('sign-up and email confirmation', () => {
+  it('shows the Mekholi brand on the shared login surface', () => {
+    const view = loginView({ onAuthenticated: () => undefined })
+    const logo = view.querySelector<HTMLImageElement>('img[alt="Mekholi logo"]')
+    expect(logo?.getAttribute('src')).toBe('./icons/mekholi-192.png')
+    expect(view.textContent).toContain('Mekholi')
+  })
+
   it('warns up front when the project requires email confirmation', async () => {
     stubSettings({ mailer_autoconfirm: false, disable_signup: false })
     const view = await openSignUp()

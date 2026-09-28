@@ -26,7 +26,9 @@ export function developerShell(options: { outlet: HTMLElement; onNavigate: (path
     return link
   }))
   const aside = h('aside', { class: 'hidden h-full w-60 shrink-0 border-r border-border bg-surface lg:flex lg:flex-col' },
-    h('div', { class: 'border-b border-border p-4' }, h('p', { class: 'text-lg font-bold text-primary', text: 'Mekholi Developer' }), h('p', { class: 'mt-1 text-xs text-content-subtle', text: 'Production control plane' })), nav,
+    h('div', { class: 'flex items-center gap-3 border-b border-border p-4' },
+      h('img', { src: './icons/mekholi-192.png', alt: 'Mekholi logo', class: 'h-10 w-10 rounded-xl shadow-sm', width: '40', height: '40' }),
+      h('div', null, h('p', { class: 'font-bold text-content', text: 'Mekholi Developer' }), h('p', { class: 'mt-0.5 text-xs text-content-subtle', text: 'Production control plane' }))), nav,
     h('div', { class: 'mt-auto border-t border-border p-3' }, h('p', { class: 'truncate text-xs text-content-muted', text: sessionStore.state.email ?? '' }), h('button', { type: 'button', class: 'mt-2 min-h-10 w-full rounded-md text-left text-sm text-danger hover:bg-danger/5 px-2', text: 'Sign out', onclick: options.onSignOut }))
   )
   const mobile = h('select', { class: 'rounded-md border border-border bg-surface px-2 py-2 text-sm lg:hidden', onchange: (e: Event) => options.onNavigate((e.target as HTMLSelectElement).value) }, ...NAV.map((n) => h('option', { value: n.path, text: n.label })))

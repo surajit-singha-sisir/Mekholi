@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Mekholi mark: a friendly shopping bag on the brand teal. -->
-  <rect width="64" height="64" rx="14" fill="#0f766e"/>
-  <path d="M18 24h28l-3 26a4 4 0 0 1-4 3.5H25a4 4 0 0 1-4-3.5L18 24z" fill="#f0fdfa"/>
-  <path d="M25 24v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#f0fdfa" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="27" cy="32" r="2.4" fill="#0f766e"/>
-  <circle cx="37" cy="32" r="2.4" fill="#0f766e"/>
-  <path d="M27 39c1.6 2.2 8.4 2.2 10 0" fill="none" stroke="#0f766e" stroke-width="2.6" stroke-linecap="round"/>
-</svg>

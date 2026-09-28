@@ -323,6 +323,23 @@ function card(...children: HTMLElement[]): HTMLElement {
     {
       class: 'w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-sm',
     },
+    h(
+      'div',
+      { class: 'mb-5 flex items-center gap-3' },
+      h('img', {
+        src: './icons/mekholi-192.png',
+        alt: 'Mekholi logo',
+        class: 'h-12 w-12 rounded-xl shadow-sm',
+        width: '48',
+        height: '48',
+      }),
+      h(
+        'div',
+        null,
+        h('p', { class: 'text-lg font-bold tracking-tight text-content', text: 'Mekholi' }),
+        h('p', { class: 'text-xs text-content-muted', text: 'Point of sale and inventory' })
+      )
+    ),
     ...children
   )
 }

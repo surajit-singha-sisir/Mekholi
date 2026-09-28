@@ -82,6 +82,7 @@ describe('PWA registration', () => {
     const notice = document.querySelector('#pwa-install-notice') as HTMLElement
     expect(notice.textContent).toContain('Install Mekholi')
     expect(notice.classList).toContain('bg-surface-raised')
+    expect(notice.querySelector<HTMLImageElement>('img[alt="Mekholi logo"]')?.src).toContain('/icons/mekholi-192.png')
 
     ;(notice.querySelector('button') as HTMLButtonElement).click()
     await vi.waitFor(() => {

@@ -152,6 +152,17 @@ export function mountPwaInstallNotice(options: {
     copy.className = 'min-w-0 flex-1'
     copy.append(title, detail)
 
+    const logo = documentLike.createElement('img')
+    logo.src = './icons/mekholi-192.png'
+    logo.alt = 'Mekholi logo'
+    logo.width = 48
+    logo.height = 48
+    logo.className = 'h-12 w-12 shrink-0 rounded-xl shadow-sm'
+
+    const identity = documentLike.createElement('div')
+    identity.className = 'flex min-w-0 flex-1 items-center gap-3'
+    identity.append(logo, copy)
+
     const actions = documentLike.createElement('div')
     actions.className = 'flex shrink-0 items-center justify-end gap-2'
 
@@ -189,7 +200,7 @@ export function mountPwaInstallNotice(options: {
     notice.className = 'fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-2xl flex-col items-stretch gap-3 rounded-xl border border-border bg-surface-raised p-4 shadow-xl sm:flex-row sm:items-center sm:gap-4'
     notice.setAttribute('role', 'status')
     notice.setAttribute('aria-live', 'polite')
-    notice.append(copy, actions)
+    notice.append(identity, actions)
     documentLike.body.append(notice)
   }
 
