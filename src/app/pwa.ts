@@ -158,7 +158,7 @@ export function mountPwaInstallNotice(options: {
     if (deferred) {
       const install = documentLike.createElement('button')
       install.type = 'button'
-      install.className = 'rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+      install.className = 'rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       install.textContent = 'Install'
       install.addEventListener('click', () => {
         const request = deferred
@@ -186,7 +186,7 @@ export function mountPwaInstallNotice(options: {
 
     notice = documentLike.createElement('aside')
     notice.id = 'pwa-install-notice'
-    notice.className = 'fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-2xl flex-col items-stretch gap-3 rounded-xl border border-border bg-surface-elevated p-4 shadow-xl sm:flex-row sm:items-center sm:gap-4'
+    notice.className = 'fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-2xl flex-col items-stretch gap-3 rounded-xl border border-border bg-surface-raised p-4 shadow-xl sm:flex-row sm:items-center sm:gap-4'
     notice.setAttribute('role', 'status')
     notice.setAttribute('aria-live', 'polite')
     notice.append(copy, actions)

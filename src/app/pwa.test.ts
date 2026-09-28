@@ -79,9 +79,11 @@ describe('PWA registration', () => {
 
     window.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)
-    expect(document.querySelector('#pwa-install-notice')?.textContent).toContain('Install Mekholi')
+    const notice = document.querySelector('#pwa-install-notice') as HTMLElement
+    expect(notice.textContent).toContain('Install Mekholi')
+    expect(notice.classList).toContain('bg-surface-raised')
 
-    ;(document.querySelector('#pwa-install-notice button') as HTMLButtonElement).click()
+    ;(notice.querySelector('button') as HTMLButtonElement).click()
     await vi.waitFor(() => {
       expect(prompt).toHaveBeenCalledOnce()
       expect(document.querySelector('#pwa-install-notice')).toBeNull()
