@@ -316,7 +316,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
   /**
    * Adds a product to the cart. `scan` is present when the line came from a code
    * an add-on recognised: it carries the weight that was on the label, so a
-   * weighed line starts at 1.250 kg rather than at the till's own step.
+   * weighed line starts at 1.250 kg rather than at the till's whole-unit step.
    *
    * A price the label printed is *shown*, never charged. Every line is priced by
    * `complete_sale` from the catalogue, so a till whose screen disagreed with its
@@ -324,7 +324,11 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
    * that disagrees becomes a warning the cashier can act on instead.
    */
   function addToCart(product: SellableProduct, scan?: ScanMatch): void {
-    const step: Milli = product.decimalQuantity ? milli(250) : milli(1000)
+    // One tap is one unit — 1, 2, 3 — whatever the product is measured in.
+    // Fractions of a kilo arrive by typing them or by scanning a scale
+    // label, never from the stepper: counting by quarters is how a till
+    // surprises a cashier.
+    const step: Milli = milli(1000)
     const line = toCartLine(product)
     if (scan) warnIfLabelPriceDiffers(product, scan)
     if (scan && scan.quantity !== undefined) {
@@ -800,7 +804,9 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
     const line = state.cart.lines.find((l) => l.lineId === lineId)
     if (!line) return h('div')
     const totals = state.totals.lines.find((t) => t.lineId === lineId)
-    const step: Milli = line.decimalQuantity ? milli(250) : milli(1000)
+    // The stepper counts 1, 2, 3 for every line; a weighed quantity is
+    // typed (1.250) or scanned, and the +/− then move it by whole units.
+    const step: Milli = milli(1000)
     const oversold = state.totals.oversold.includes(lineId)
 
     const qtyInput = input({

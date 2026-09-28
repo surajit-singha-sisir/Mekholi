@@ -185,6 +185,17 @@ describe('ticking rows', () => {
     expect(cartLines(view)).toHaveLength(1)
   })
 
+  it('a tap adds one whole unit, even of a weighed product', async () => {
+    // RICE is decimal (kg). The stepper counts 1, 2, 3 — a quarter-kilo
+    // arrives by typing or by scale label, never from a tap.
+    const view = await build()
+    rows(view)[0]!.click()
+    await settle()
+
+    const qty = view.querySelector<HTMLInputElement>('input[aria-label^="Quantity"]')
+    expect(qty?.value).toBe('1')
+  })
+
   it('takes it off again on a second tap', async () => {
     const view = await build()
     rows(view)[0]!.click()

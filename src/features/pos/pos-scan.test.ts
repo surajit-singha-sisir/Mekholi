@@ -196,7 +196,7 @@ describe('a scan the barcode table does not know', () => {
     // The cashier is told what the label said, in the shop's own words.
     expect(textOf(document.body)).toContain('Scale label · 2.350 kg')
     // The line starts at the weight on the label — not at the till's own
-    // 0.250 kg step, which is what a bare product tap would have added.
+    // whole-unit step, which is what a bare product tap would have added.
     expect(quantities(view)).toContain('2.35')
     // 2.35 kg × ৳95.00 — priced by the catalogue, multiplied by the till.
     expect(text).toContain('223.25')
