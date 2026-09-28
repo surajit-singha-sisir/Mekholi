@@ -22,6 +22,7 @@ import { getRepositories } from '../../app/data'
 import { activeOrganization, can } from '../../app/state/session'
 import { formatMoney, minor, minorToNumber, parseMinor, type Minor } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
+import { normalizePhone } from '../../shared/domain/phone'
 import type { CustomerRow } from '../../shared/types/records'
 import type { ReportCell, ReportColumn } from '../../shared/repositories/contracts'
 
@@ -222,7 +223,7 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
     const submit = button(existing ? 'Save changes' : 'Add customer', { variant: 'primary', fullWidth: true, size: 'lg' })
     const dialog = modal({
       title: existing ? 'Edit customer' : 'New customer',
-      subtitle: 'Name and phone are enough — everything else can wait.',
+      subtitle: 'Name and phone are required — everything else can wait.',
       iconName: 'person_add',
       size: 'sm',
       footer: [h('div', { class: 'w-full' }, submit)],
@@ -234,7 +235,7 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
         'div',
         { class: 'space-y-4' },
         field('Name', nameInput, { required: true }),
-        field('Phone', phoneInput),
+        field('Phone', phoneInput, { required: true, hint: '01XXXXXXXXX — how the shop reaches them about dues and deliveries.' }),
         field('Email', emailInput),
         field('Address', addressInput),
         field('Note', noteInput),
@@ -250,11 +251,19 @@ export function customersView(options: CustomersViewOptions = {}): HTMLElement {
           errorSlot.classList.remove('hidden')
           return
         }
+        // Mandatory, and checked here rather than by the database: the
+        // person typing can still fix it while the customer is standing there.
+        const phone = normalizePhone(phoneInput.value)
+        if (!phone) {
+          errorSlot.textContent = 'A customer needs a phone number — e.g. 01712345678.'
+          errorSlot.classList.remove('hidden')
+          return
+        }
         submit.disabled = true
         try {
           const draft = {
             name,
-            phone: phoneInput.value.trim() || null,
+            phone,
             email: emailInput.value.trim() || null,
             address: addressInput.value.trim() || null,
             note: noteInput.value.trim() || null,

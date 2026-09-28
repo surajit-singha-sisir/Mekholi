@@ -447,19 +447,34 @@ describe('the customer on the sale', () => {
 
   it('adds a customer the shop does not have yet, from what was typed', async () => {
     const view = await build()
-    const dialog = await openDialog(view, 'Nasrin Akter')
+    const dialog = await openDialog(view, 'Nasrin Akter 01712 345678')
 
     expect(textOf(dialog)).toContain('Nobody matches yet')
     buttonNamed(dialog, 'Add “Nasrin Akter”').click()
     await settle()
 
-    expect(created).toEqual([{ name: 'Nasrin Akter', phone: null }])
+    // The phone is mandatory and arrives normalized to the dialled form.
+    expect(created).toEqual([{ name: 'Nasrin Akter', phone: '01712345678' }])
     expect(textOf(view)).toContain('Nasrin Akter')
+  })
+
+  it('refuses to add a customer without a phone, and says what to type', async () => {
+    const view = await build()
+    const dialog = await openDialog(view, 'Nasrin Akter')
+
+    // No button — a hint instead, naming the exact gesture.
+    expect(() => buttonNamed(dialog, 'Add “Nasrin Akter”')).toThrow()
+    expect(textOf(dialog)).toContain('A customer needs a phone number')
+    expect(created).toEqual([])
   })
 
   it('reads a phone number as a phone number, not a name', async () => {
     // §19 is name and phone; the shop should not have to say which it typed.
     expect(splitQuery('Nasrin Akter')).toEqual({ name: 'Nasrin Akter', phone: null })
+    expect(splitQuery('Nasrin Akter 01712 345678')).toEqual({
+      name: 'Nasrin Akter',
+      phone: '01712 345678',
+    })
     expect(splitQuery('01712 345678')).toEqual({ name: '01712 345678', phone: '01712 345678' })
     expect(splitQuery('+8801712345678')).toEqual({
       name: '+8801712345678',

@@ -23,6 +23,7 @@ import { toastError } from '../../components/feedback/toast'
 import { can } from '../../app/state/session'
 import { getRepositories } from '../../app/data'
 import { translateError } from '../../app/platform/errors'
+import { normalizePhone } from '../../shared/domain/phone'
 import { formatMoney } from '../../shared/domain/money'
 import type { CustomerRow } from '../../shared/types/records'
 import { parseMinor } from '../../shared/domain/money'
@@ -54,7 +55,17 @@ export function splitQuery(query: string): { name: string; phone: string | null 
   const name = query.trim()
   const digits = name.replace(/[\s-]/g, '')
   const isPhone = /^\+?\d{6,15}$/.test(digits)
-  return { name, phone: isPhone ? name : null }
+  if (isPhone) return { name, phone: name }
+  // "Nasrin 01712 345678" — a name followed by a phone is both at once,
+  // which is exactly how a counter types a new customer in one breath.
+  const tail = name.match(/^(.+?)[\s,]+(\+?\d[\d\s-]{5,})$/)
+  if (tail) {
+    const candidate = (tail[2] ?? '').trim()
+    if (/^\+?\d{6,15}$/.test(candidate.replace(/[\s-]/g, ''))) {
+      return { name: (tail[1] ?? '').trim(), phone: candidate }
+    }
+  }
+  return { name, phone: null }
 }
 
 /** The line under a name: what tells two customers apart at a glance. */
@@ -227,15 +238,27 @@ export function openCustomerDialog(options: CustomerDialogOptions): { close: () 
     // shopkeeper was about to pick.
     const typed = splitQuery(query)
     if (can('customers.create') && typed.name !== '' && results.length === 0 && !busy) {
-      rows.push(
-        button(`Add “${typed.name}”`, {
-          size: 'sm',
-          variant: 'secondary',
-          icon: 'person_add',
-          fullWidth: true,
-          onClick: () => void create(typed.name, typed.phone),
-        })
-      )
+      // A phone is mandatory on a customer, so the button only exists when
+      // there is one — and the hint says exactly what to type instead of
+      // letting the tap fail afterwards.
+      if (typed.phone && normalizePhone(typed.phone)) {
+        rows.push(
+          button(`Add “${typed.name}”`, {
+            size: 'sm',
+            variant: 'secondary',
+            icon: 'person_add',
+            fullWidth: true,
+            onClick: () => void create(typed.name, typed.phone),
+          })
+        )
+      } else {
+        rows.push(
+          h('p', {
+            class: 'rounded-md bg-surface-muted px-3 py-2 text-xs text-content-muted',
+            text: `To add “${typed.name}”, type the phone after the name — “${typed.name} 01712345678”. A customer needs a phone number.`,
+          })
+        )
+      }
     }
 
     mount(listBox, ...rows)
@@ -244,7 +267,7 @@ export function openCustomerDialog(options: CustomerDialogOptions): { close: () 
       : selected.length > 0
         ? `${selected.length} on this sale`
         : results.length === 0
-          ? 'Nobody matches yet — type a name to add a customer.'
+          ? 'Nobody matches yet — type a name and phone to add a customer.'
           : `${results.length} match${results.length === 1 ? '' : 'es'}`
     busyLine.classList.toggle('hidden', !busy)
     clearButton.classList.toggle('hidden', selected.length === 0)
@@ -252,10 +275,15 @@ export function openCustomerDialog(options: CustomerDialogOptions): { close: () 
   }
 
   async function create(name: string, phone: string | null): Promise<void> {
+    const normal = phone ? normalizePhone(phone) : null
+    if (!normal) {
+      toastError('A customer needs a phone number — e.g. 01712345678.')
+      return
+    }
     busy = true
     draw()
     try {
-      const created = await repos.customers.create({ name, phone })
+      const created = await repos.customers.create({ name, phone: normal })
       // A customer written down at the counter is one the cashier meant to put
       // on the sale, so it is ticked rather than merely listed.
       busy = false
