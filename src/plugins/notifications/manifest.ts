@@ -16,6 +16,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const NOTIFICATIONS_ID = 'notifications'
 
@@ -31,6 +32,7 @@ export const NOTIFICATIONS_MANAGE = 'settings.view'
 export const notificationsManifest: PluginManifest = {
   id: NOTIFICATIONS_ID,
   name: 'Notifications',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

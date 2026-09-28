@@ -573,6 +573,12 @@ export interface PluginManifest {
    * a grey rectangle.
    */
   cover?: string
+  /**
+   * The plugin's own story, as Markdown (usually imported from a DETAILS.md
+   * beside the manifest). The Plugins screen renders it in the detail modal
+   * a shopkeeper reads before installing.
+   */
+  details?: string
 }
 
 export interface SettingField {

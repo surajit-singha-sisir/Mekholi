@@ -16,6 +16,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const BRANCH_ID = 'branch'
 
@@ -30,6 +31,7 @@ export const BRANCH_MANAGE = 'settings.business'
 export const branchManifest: PluginManifest = {
   id: BRANCH_ID,
   name: 'Branches',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

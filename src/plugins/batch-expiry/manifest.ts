@@ -10,6 +10,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const BATCH_KEY = 'batch_number'
 export const EXPIRY_KEY = 'expiry_date'
@@ -20,6 +21,7 @@ export const DEFAULT_WARNING_DAYS = 90
 export const batchExpiryManifest: PluginManifest = {
   id: 'batch-expiry',
   name: 'Batch & Expiry',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

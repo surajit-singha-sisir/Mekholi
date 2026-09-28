@@ -14,6 +14,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const LABEL_PRINTING_ID = 'label-printing'
 
@@ -28,6 +29,7 @@ export const LABELS_PRINT = 'products.view'
 export const labelPrintingManifest: PluginManifest = {
   id: 'label-printing',
   name: 'Label printing',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

@@ -19,6 +19,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const MULTI_CURRENCY_ID = 'multi-currency'
 
@@ -32,6 +33,7 @@ export const MULTI_CURRENCY_MANAGE = 'settings.view'
 export const multiCurrencyManifest: PluginManifest = {
   id: MULTI_CURRENCY_ID,
   name: 'Multi-Currency Display',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

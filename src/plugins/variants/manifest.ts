@@ -11,6 +11,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 /** The key `app.variants_config` reads out of the plugin's config. */
 export const MAX_VARIANTS_KEY = 'max_variants'
@@ -24,6 +25,7 @@ export const DEFAULT_MAX_VARIANTS = 200
 export const variantsManifest: PluginManifest = {
   id: 'variants',
   name: 'Variants',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

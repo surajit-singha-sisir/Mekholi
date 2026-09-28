@@ -13,6 +13,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const WEIGHT_SCALE_ID = 'weight-scale'
 
@@ -49,6 +50,7 @@ export const weightScaleManifest: PluginManifest = {
   // are: the shipped bundle is compared with *this file* by reading it.
   id: 'weight-scale',
   name: 'Weighing scale',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

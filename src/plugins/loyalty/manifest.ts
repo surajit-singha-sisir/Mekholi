@@ -13,6 +13,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const LOYALTY_ID = 'loyalty'
 
@@ -38,6 +39,7 @@ export const loyaltyManifest: PluginManifest = {
   // below are: the shipped bundle is compared with *this file* by reading it.
   id: 'loyalty',
   name: 'Loyalty',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

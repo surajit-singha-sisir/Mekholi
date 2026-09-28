@@ -20,10 +20,12 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const barcodeScannerManifest: PluginManifest = {
   id: 'barcode-scanner',
   name: 'Barcode Scanner',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

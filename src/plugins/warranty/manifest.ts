@@ -10,6 +10,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 /**
  * The product field this plugin registers, and the key the shop taxonomy
@@ -44,6 +45,7 @@ export const MAX_UNITS_PER_LINE = 50
 export const warrantyManifest: PluginManifest = {
   id: 'warranty',
   name: 'Warranty',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

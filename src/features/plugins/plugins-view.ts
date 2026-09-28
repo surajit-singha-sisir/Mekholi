@@ -38,6 +38,7 @@ import {
   startTrial,
   type Licence,
 } from '../../shared/registry/plugin-licence'
+import { renderMarkdown } from '../../components/ui/markdown'
 import { pluginCover } from './plugin-cover'
 import { pluginShelfOrder } from './plugin-order'
 import type { PluginManifest } from '../../shared/registry/plugin-types'
@@ -102,8 +103,8 @@ export function pluginsView(): HTMLElement {
     value: filter,
     options: [
       { value: 'all', label: 'All plugins' },
-      { value: 'on', label: 'Switched on' },
-      { value: 'off', label: 'Switched off' },
+      { value: 'on', label: 'Installed' },
+      { value: 'off', label: 'Not installed' },
       { value: 'attention', label: 'Needs attention' },
     ],
     onChange: (value) => {
@@ -161,7 +162,7 @@ export function pluginsView(): HTMLElement {
         reloadButton
       ),
       h('div', { class: 'grid gap-2 sm:grid-cols-3' }, [
-        stat('Switched on', `${on} of ${entries.length}`),
+        stat('Installed', `${on} of ${entries.length}`),
         stat('Migrations to apply', pending === 0 ? 'None' : String(pending)),
         stat('Needs attention', broken === 0 ? 'None' : String(broken), broken ? { tone: 'danger' } : {}),
       ]),
@@ -314,8 +315,8 @@ export function pluginsView(): HTMLElement {
       : blocked
         ? badge('Blocked', { tone: 'warning', iconName: 'block' })
         : entry.enabled
-          ? badge('On', { tone: 'success', iconName: 'check_circle' })
-          : badge('Off', { tone: 'neutral', iconName: 'power_settings_new' })
+          ? badge('Installed', { tone: 'success', iconName: 'check_circle' })
+          : badge('Not installed', { tone: 'neutral', iconName: 'download' })
 
     const priceBadge = !paid
       ? badge('Free', { tone: 'success', iconName: 'volunteer_activism' })
@@ -347,17 +348,17 @@ export function pluginsView(): HTMLElement {
     } else if (canManage) {
       controls.push(
         entry.enabled
-          ? button('Switch off', {
+          ? button('Uninstall', {
               variant: 'secondary',
-              icon: 'toggle_off',
+              icon: 'delete',
               fullWidth: true,
-              onClick: () => void switchOff(entry),
+              onClick: () => void uninstall(entry),
             })
-          : button(paid && !licence.entitled ? 'Subscribe & switch on' : 'Switch on', {
+          : button(paid && !licence.entitled ? 'Purchase & install' : 'Install', {
               variant: 'primary',
-              icon: paid && !licence.entitled ? 'shopping_cart_checkout' : 'toggle_on',
+              icon: paid && !licence.entitled ? 'shopping_cart_checkout' : 'download',
               fullWidth: true,
-              onClick: () => void switchOn(entry),
+              onClick: () => void install(entry),
             })
       )
     }
@@ -369,14 +370,26 @@ export function pluginsView(): HTMLElement {
         iconButton('tune', `${entry.name} settings`, {
           variant: 'ghost',
           disabled: !entry.installed,
-          title: entry.installed ? 'Settings' : 'Switch this plugin on first',
+          title: entry.installed ? 'Settings' : 'Install this plugin first',
           onClick: () => openSettings(entry),
         })
       )
     )
 
     return card(
-      h('div', { class: 'flex flex-col gap-4 lg:flex-row lg:items-start' },
+      h('div', {
+        class: 'flex flex-col gap-4 lg:flex-row lg:items-start cursor-pointer',
+        role: 'button',
+        tabindex: '0',
+        'aria-label': `About ${entry.name}`,
+        onclick: () => openDetails(entry),
+        onkeydown: (event: KeyboardEvent) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            openDetails(entry)
+          }
+        },
+      },
         // ── Cover ──────────────────────────────────────────────────────
         h('img', {
           src: manifest?.cover ?? pluginCover({ id: entry.key, name: entry.name }),
@@ -418,7 +431,11 @@ export function pluginsView(): HTMLElement {
         ),
 
         // ── What you can do about it ───────────────────────────────────
-        h('div', { class: 'flex w-full shrink-0 flex-col gap-2 lg:w-52' }, ...controls)
+        h('div', {
+          class: 'flex w-full shrink-0 flex-col gap-2 lg:w-52',
+          onclick: (event: Event) => event.stopPropagation(),
+          onkeydown: (event: Event) => event.stopPropagation(),
+        }, ...controls)
       ),
 
       blocked && registration?.error
@@ -487,7 +504,7 @@ export function pluginsView(): HTMLElement {
    * The money is first because it is the one the shopkeeper cannot undo by
    * switching the plugin off again.
    */
-  async function switchOn(entry: PluginCatalogEntry): Promise<void> {
+  async function install(entry: PluginCatalogEntry): Promise<void> {
     const manifest = manifestOf(entry.key)
     const pricing = manifest?.pricing
     const licence = licenceOf(entry)
@@ -505,7 +522,7 @@ export function pluginsView(): HTMLElement {
         .filter((other): other is PluginCatalogEntry => !!other)
         .filter((other) => (manifestOf(other.key)?.pricing?.priceBdt ?? 0) > 0)
 
-      const ok = await confirm(`Switch on ${entry.name}?`, {
+      const ok = await confirm(`Install ${entry.name}?`, {
         message:
           `${licenceOf(entry).summary}\n\n` +
           `It adds ${entry.permissions.length} permission(s).\n\n` +
@@ -514,7 +531,7 @@ export function pluginsView(): HTMLElement {
             ? `\n\n${entry.migrationsPending} migration(s) will be applied to this shop's database. ` +
               'Applying a migration cannot be undone by switching the plugin off.'
             : '') +
-          (willEnable.length > 0 ? `\n\nAlso switched on: ${willEnable.join(', ')}.` : '') +
+          (willEnable.length > 0 ? `\n\nAlso installed: ${willEnable.join(', ')}.` : '') +
           (paidDependencies.length > 0
             ? `\n\nThose are charged separately: ` +
               paidDependencies
@@ -522,7 +539,7 @@ export function pluginsView(): HTMLElement {
                 .join(', ') +
               '.'
             : ''),
-        confirmLabel: 'Switch on',
+        confirmLabel: 'Install',
         iconName: 'extension',
       })
       if (!ok) return
@@ -547,8 +564,8 @@ export function pluginsView(): HTMLElement {
       await syncPlugins()
       toastSuccess(
         result.migrationsApplied > 0
-          ? `${entry.name} is on — ${result.migrationsApplied} migration(s) applied.`
-          : `${entry.name} is on.`
+          ? `${entry.name} is installed — ${result.migrationsApplied} migration(s) applied.`
+          : `${entry.name} is installed.`
       )
       await load()
     } catch (error) {
@@ -576,7 +593,7 @@ export function pluginsView(): HTMLElement {
       message:
         `${priceLabel(pricing)}, per shop.\n\n` +
         (canTrial
-          ? `Start a ${trialDays}-day free trial now — it switches itself off when the trial ends, ` +
+          ? `Start a ${trialDays}-day free trial now — it uninstalls itself when the trial ends, ` +
             'and nothing is charged until you subscribe.'
           : `${licence.summary}\n\nSubscribing renews the entitlement for 30 days.`) +
         '\n\nBilling is arranged with your supplier; this records the entitlement for this shop.',
@@ -606,30 +623,30 @@ export function pluginsView(): HTMLElement {
     return true
   }
 
-  async function switchOff(entry: PluginCatalogEntry): Promise<void> {
+  async function uninstall(entry: PluginCatalogEntry): Promise<void> {
     const dependents = entries
       .filter((other) => other.enabled && other.dependencies.includes(entry.key))
       .map((other) => other.name)
 
     if (dependents.length > 0) {
-      toastError(`${entry.name} is needed by ${dependents.join(', ')}. Switch those off first.`)
+      toastError(`${entry.name} is needed by ${dependents.join(', ')}. Uninstall those first.`)
       return
     }
 
-    const ok = await confirm(`Switch off ${entry.name}?`, {
+    const ok = await confirm(`Uninstall ${entry.name}?`, {
       message:
         'Its screens and panels disappear from the shop straight away. Its tables, data and permissions are kept, ' +
-        'so switching it back on restores everything.',
-      confirmLabel: 'Switch off',
+        'so installing it again restores everything.',
+      confirmLabel: 'Uninstall',
       tone: 'danger',
-      iconName: 'toggle_off',
+      iconName: 'delete',
     })
     if (!ok) return
 
     try {
       await repos.plugins.disable(organizationId, entry.key)
       await syncPlugins()
-      toastSuccess(`${entry.name} is off. Its data is still here.`)
+      toastSuccess(`${entry.name} is uninstalled. Its data is still here.`)
       await load()
     } catch (error) {
       toastError(translateError(error).message)
@@ -659,6 +676,119 @@ export function pluginsView(): HTMLElement {
       ...(entries.find((other) => other.key === dependency)?.enabled ? [] : [dependency]),
       ...dependenciesOf(dependency, seen),
     ])
+  }
+
+  /**
+   * The plugin's own page: a modal that renders the DETAILS.md the plugin
+   * ships beside its code — its story, in its own words — with the facts the
+   * card cannot fit and the same Install / Purchase / Uninstall decisions.
+   *
+   * A catalog entry this bundle has no manifest for still gets a modal: the
+   * server's description stands in for the missing file, because an empty
+   * dialog teaches a shopkeeper to stop clicking.
+   */
+  function openDetails(entry: PluginCatalogEntry): void {
+    const manifest = manifestOf(entry.key)
+    const licence = licenceOf(entry)
+    const paid = licence.status !== 'free'
+    const alwaysOn = alwaysOnPlugins().includes(entry.key)
+    const registration = pluginRegistry.get(entry.key)
+    const loaded = registration?.status === 'loaded'
+    const parts = loaded ? contributions(entry.key) : []
+
+    const dialog = modal({
+      title: entry.name,
+      subtitle: `v${entry.version} · ${CATEGORY_LABELS[entry.category]}`,
+      iconName: 'extension',
+      size: 'lg',
+    })
+
+    const statusBadge = alwaysOn
+      ? badge('Always on', { tone: 'success', iconName: 'lock' })
+      : entry.enabled
+        ? badge('Installed', { tone: 'success', iconName: 'check_circle' })
+        : badge('Not installed', { tone: 'neutral', iconName: 'download' })
+    const priceBadge = !paid
+      ? badge('Free', { tone: 'success', iconName: 'volunteer_activism' })
+      : licence.status === 'trial'
+        ? badge(`Trial · ${licence.daysLeft}d left`, { tone: 'info', iconName: 'schedule' })
+        : licence.status === 'active'
+          ? badge('Subscribed', { tone: 'success', iconName: 'workspace_premium' })
+          : licence.status === 'expired'
+            ? badge('Expired', { tone: 'danger', iconName: 'event_busy' })
+            : badge(priceLabel(manifest?.pricing), { tone: 'warning', iconName: 'sell' })
+
+    const factLine = (label: string, value: string): HTMLElement =>
+      h('p', { class: 'text-xs text-content-subtle', text: `${label}: ${value}` })
+
+    const actions: (HTMLElement | null)[] = []
+    if (!alwaysOn && canManage) {
+      actions.push(
+        entry.enabled
+          ? button('Uninstall', {
+              variant: 'secondary',
+              icon: 'delete',
+              onClick: () => {
+                dialog.close()
+                void uninstall(entry)
+              },
+            })
+          : button(paid && !licence.entitled ? 'Purchase & install' : 'Install', {
+              variant: 'primary',
+              icon: paid && !licence.entitled ? 'shopping_cart_checkout' : 'download',
+              onClick: () => {
+                dialog.close()
+                void install(entry)
+              },
+            })
+      )
+    }
+    if (entry.installed) {
+      actions.push(
+        button('Settings', {
+          variant: 'outline',
+          icon: 'tune',
+          onClick: () => {
+            dialog.close()
+            openSettings(entry)
+          },
+        })
+      )
+    }
+    actions.push(button('Close', { variant: 'ghost', onClick: () => dialog.close() }))
+
+    mount(
+      dialog.body,
+      h(
+        'div',
+        { class: 'space-y-4' },
+        h('img', {
+          src: manifest?.cover ?? pluginCover({ id: entry.key, name: entry.name }),
+          alt: '',
+          class: 'h-32 w-full rounded-lg border border-border object-cover',
+        }),
+        h('div', { class: 'flex flex-wrap items-center gap-1.5' }, statusBadge, priceBadge),
+        h('p', { class: 'text-xs text-content-subtle', text: licence.summary }),
+
+        // The story: the plugin's own DETAILS.md, or the server's one-liner.
+        manifest?.details
+          ? renderMarkdown(manifest.details)
+          : h('p', { class: 'text-sm text-content-muted', text: entry.description ?? 'No description yet.' }),
+
+        h(
+          'div',
+          { class: 'space-y-1 border-t border-border pt-3' },
+          parts.length > 0 ? factLine('Adds', parts.join(' · ')) : null,
+          entry.permissions.length > 0
+            ? factLine('Permissions', entry.permissions.map((permission) => permission.key).join(', '))
+            : null,
+          entry.dependencies.length > 0 ? factLine('Needs', entry.dependencies.join(', ')) : null,
+          factLine('id', entry.key)
+        ),
+
+        h('div', { class: 'flex flex-wrap justify-end gap-2 pt-1' }, ...actions)
+      )
+    )
   }
 
   /**

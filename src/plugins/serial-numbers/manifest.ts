@@ -10,6 +10,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 /**
  * The product field this plugin registers, and the one the shop taxonomy
@@ -35,6 +36,7 @@ export const PENDING_WINDOW_DAYS = 60
 export const serialNumbersManifest: PluginManifest = {
   id: 'serial-numbers',
   name: 'Serial Numbers',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

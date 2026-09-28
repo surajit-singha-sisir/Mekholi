@@ -16,6 +16,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const DUE_LEDGER_ID = 'due-ledger'
 
@@ -29,6 +30,7 @@ export const DUE_VIEW = 'customers.view'
 export const dueLedgerManifest: PluginManifest = {
   id: DUE_LEDGER_ID,
   name: 'Due book (বাকির খাতা)',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

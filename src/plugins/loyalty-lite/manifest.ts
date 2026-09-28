@@ -8,6 +8,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const POINTS_PER_CURRENCY_KEY = 'points_per_currency'
 export const AUTO_AWARD_KEY = 'auto_award'
@@ -15,6 +16,7 @@ export const AUTO_AWARD_KEY = 'auto_award'
 export const loyaltyLiteManifest: PluginManifest = {
   id: 'loyalty-lite',
   name: 'Loyalty (lite)',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',

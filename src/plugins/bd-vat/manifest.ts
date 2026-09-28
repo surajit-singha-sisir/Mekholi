@@ -16,6 +16,7 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const BD_VAT_ID = 'bd-vat'
 
@@ -29,6 +30,7 @@ export const BD_VAT_MANAGE = 'settings.view'
 export const bdVatManifest: PluginManifest = {
   id: BD_VAT_ID,
   name: 'Bangladesh VAT (Mushak)',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   description:

@@ -22,10 +22,12 @@
  */
 
 import type { PluginManifest } from '../../shared/registry/plugin-types'
+import details from './DETAILS.md?raw'
 
 export const printerSetupManifest: PluginManifest = {
   id: 'printer-setup',
   name: 'Printer Setup',
+  details,
   version: '1.0.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',
