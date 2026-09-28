@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 69,
+  "migrations": 70,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -435,6 +435,16 @@
           "name": "p_minutes",
           "type": "integer",
           "required": false
+        }
+      ]
+    },
+    "developer_user_delete": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_user_id",
+          "type": "uuid",
+          "required": true
         }
       ]
     },

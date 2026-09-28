@@ -140,4 +140,7 @@ export const controlPlane = {
   async endSupport(): Promise<{ ended: boolean; organization_id?: string }> {
     return unwrap(await client().rpc('developer_support_end')) as { ended: boolean; organization_id?: string }
   },
+  async deleteUser(userId: string): Promise<{ deleted: boolean }> {
+    return unwrap(await client().rpc('developer_user_delete', { p_user_id: userId })) as { deleted: boolean }
+  },
 }

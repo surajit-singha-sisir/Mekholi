@@ -272,7 +272,7 @@ export function developerPluginsView(): HTMLElement {
 }
 
 function userForm(user: DeveloperUser | null, reload: () => void): void {
-  openForm({ title: user ? 'Edit user' : 'Create user', description: user ? 'Leave password empty to keep the current password.' : 'The account is email-confirmed and can sign in immediately.', fields: [
+  openForm({ title: user ? 'Edit user' : 'Create user', description: user ? 'Warning: these changes apply immediately. Leave password empty to keep the current password.' : 'The account is email-confirmed and can sign in immediately.', fields: [
     { key: 'email', label: 'Email', type: 'email', value: user?.email, required: true }, { key: 'name', label: 'Name', value: user?.name ?? '' },
     { key: 'password', label: user ? 'New password (optional)' : 'Password', type: 'password', required: !user },
   ], onSubmit: async (values) => { await controlPlane.command('user.save', { ...values, id: user?.id ?? '' }); toastSuccess(user ? 'User updated' : 'User created'); reload() } })
@@ -290,7 +290,10 @@ export function developerUsersView(): HTMLElement {
         h('div', { class: 'min-w-0 flex-1' }, h('p', { class: 'font-medium', text: user.name || user.email }), h('p', { class: 'text-xs text-content-subtle', text: `${user.email} · ${user.id}` })),
         badge(`${user.organization_count} shop${user.organization_count === 1 ? '' : 's'}`, { tone: 'neutral' }), user.is_developer ? badge('Developer', { tone: 'warning' }) : null,
         button('Edit', { variant: 'ghost', onClick: () => userForm(user, () => void load()) }),
-        button('Delete', { variant: 'danger', onClick: () => openForm({ title: 'Permanently delete user', danger: true, description: `Type “${user.email}” and provide a reason. All memberships are removed.`, fields: [{ key: 'confirm', label: 'Email', required: true }, { key: 'reason', label: 'Reason', type: 'textarea', required: true }], onSubmit: async (values) => { await controlPlane.command('user.delete', { id: user.id, ...values }); toastSuccess('User deleted'); void load() } }) })))) : emptyState('No users match', { iconName: 'person_search' }))
+        button('Delete', { variant: 'danger', onClick: () => {
+          if (!confirm(`Warning: delete ${user.email}? Sign-in and every shop membership will be revoked immediately. Historical audit records will be preserved.`)) return
+          void controlPlane.deleteUser(user.id).then(() => { toastSuccess('User deleted'); void load() }).catch((error: unknown) => toastError(error instanceof Error ? error.message : String(error)))
+        } })))) : emptyState('No users match', { iconName: 'person_search' }))
     } catch (e) { failure(body, e) }
   }
   search.addEventListener('input', () => { window.clearTimeout(timer); timer = window.setTimeout(() => void load(), 250) })
