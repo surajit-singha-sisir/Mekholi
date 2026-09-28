@@ -1,10 +1,12 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import { pwaServiceWorker } from './tools/pwa-service-worker'
 
 // `base: './'` so the built bundle works from any sub-path (GitHub Pages,
 // a CDN prefix, or an Android WebView asset root) without a rebuild.
 export default defineConfig({
   base: './',
+  plugins: [pwaServiceWorker()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -1,0 +1,52 @@
+{
+  "id": "./",
+  "name": "Mekholi POS",
+  "short_name": "Mekholi",
+  "description": "Retail point of sale, inventory, purchases and customer accounts.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/mekholi-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/mekholi-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/mekholi-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Point of Sale",
+      "short_name": "POS",
+      "description": "Open the selling screen",
+      "url": "./pos",
+      "icons": [{ "src": "./icons/mekholi-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Open product management",
+      "url": "./products",
+      "icons": [{ "src": "./icons/mekholi-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

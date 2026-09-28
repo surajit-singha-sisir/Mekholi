@@ -5,6 +5,12 @@
 **Markets assessed:** Bangladesh retail and international/general POS  
 **Decision type:** product and engineering readiness assessment, not legal, tax, PCI, or accessibility certification
 
+> **Post-audit remediation — 29 September 2026:** the standard web manifest,
+> install icons, versioned app-shell service worker, safe update lifecycle, and
+> offline History API fallback identified in this report have now been
+> implemented. Deployment/browser install validation remains part of the
+> release gate. Historical evidence below remains tied to the audited revision.
+
 ## 1. Executive verdict
 
 Mekholi is a substantial, coherent POS product—not a prototype. Its sale, inventory, purchase, customer, supplier, expense, staff, role, reporting, audit, branch, offline, and extension foundations are real implementations backed by an unusually broad automated test suite. Server-side organization boundaries, permission checks, audited developer support, integer money, append-only business history, and atomic database RPCs are particularly strong foundations.
@@ -106,7 +112,7 @@ These are implemented features. They should not be confused with certified gatew
 | **P0** | No release-level real-hardware and full authenticated E2E matrix | Unit/database tests cannot prove cash-counter behavior. The HTTP E2E script did not run in this audit because `.env` was absent. | Make credential-safe staging E2E a CI/release gate; validate complete sale/refund/due/purchase/stock paths on supported printer/scanner/scale/Android/browser/network combinations. |
 | **P1** | bKash/Nagad/card are recorded, not integrated/verified | Manual references do not confirm settlement, prevent duplicate transaction IDs, reconcile gateway payouts, or manage reversals. | Clearly label manual tenders; add duplicate-reference controls and reconciliation, or integrate approved providers through a secure server component and complete their certification. |
 | **P1** | Bangla coverage is partial | Most feature screens remain English; shell/navigation/settings translation does not make the full cashier and back-office workflow Bangla. | Translate POS, products, stock, purchases, dues, reports, errors, receipts, and help; test Bangla typography, search, keyboard/input, wrapping, and operator comprehension. |
-| **P1** | Browser app is offline-capable but not a complete installable PWA | No standard web manifest/service worker shell was found. A cold/reloaded browser still depends on the network and cannot provide a normal install experience. | Add manifest, icons, service-worker/app-shell strategy, update safety, cache-version recovery, and install/offline tests. |
+| **P1** | Installable PWA implementation requires deployment validation | A post-audit remediation added the web manifest, install/maskable icons, generated versioned service-worker shell, safe update lifecycle, cache-version recovery, deep-link fallback, and tests. | Validate installation and offline cold/deep-link launch on deployed Chrome/Edge/Android and Safari/iOS; add this matrix to the release gate. |
 | **P1** | Merchant-controlled full data export and lifecycle controls are incomplete | Report/product CSVs are not an owner-readable, complete organization export or portable backup. | Implement complete export with schema/version metadata; add documented account closure, retention, and deletion/anonymization workflow. |
 | **P1** | Refund/return/exchange and cash-control depth needs release validation | These are fraud-sensitive, legally visible, and central to real retail. Existing sale controls must be proved as complete operator workflows and accounting outcomes. | Scenario-test permissions, reason codes, original tender, partial return, exchange, offline conflict, register reconciliation, audit history, and receipt output. |
 | **P1** | Security hardening evidence is incomplete | Static GitHub Pages gives limited control over response security headers; no independent test or pen test is recorded. | Put production behind a host/CDN with CSP and modern security headers, dependency updates, secret scanning, rate/abuse tests, RLS review, support-session review, and an external pen test. |
@@ -145,7 +151,7 @@ These reduce future rework. They do not by themselves create market readiness.
 | **P1** | International money/tax edge cases need deeper proof | Cash rounding, zero/three-decimal currencies, tax inclusive/exclusive mixes, compound taxes, tips/service charges, fiscal rounding, refunds, and exchange-rate accounting vary. |
 | **P1** | Key mature-POS modules are absent or not evidenced | Promotions/coupons, gift cards/store credit, formal stocktake/cycle counts, quotations/orders/layaway, wholesale/customer-group pricing, purchase suggestions/automatic reordering, BOM/recipes, time clock/payroll links, delivery/e-commerce, and accounting integrations are common selection criteria. |
 | **P1** | Hardware ecosystem is not productized | A global product needs country-specific certified devices, USB/Bluetooth/network paths, drawers, customer displays, terminal integration, OS/browser compatibility, drivers, and support boundaries. |
-| **P1** | Installable web deployment is incomplete | The lack of a standard PWA manifest/service worker reduces resilience and mobile/tablet adoption. |
+| **P1** | Installable web deployment needs cross-browser field proof | Manifest, install icons, and a versioned app-shell service worker were added after the audit; deployed installability, upgrade behavior, storage eviction, and offline launch still need validation across target browsers/devices. |
 | **P1** | Marketplace/plugin governance is architectural, not an operating ecosystem | Third-party code requires signing/review, sandboxing or strong capability boundaries, version/deprecation policy, security response, billing, publisher terms, and support ownership. Current shipped plugins are first-party bundles. |
 | **P2** | Enterprise administration is incomplete | Larger customers commonly require SSO/SAML/OIDC governance, SCIM, IP/session policy, regional tenancy, consolidated multi-entity controls, export APIs/webhooks, and advanced audit retention. |
 | **P2** | Accessibility conformity is unproven | Public-sector and larger buyers may demand formal WCAG/EN 301 549/Section 508 evidence. |
@@ -195,7 +201,7 @@ Mekholi can become a global platform because its core boundaries are sound. Toda
 | bKash/Nagad/card processing | Manual tender/reference recording | Not gateway processing or automated settlement |
 | Bangla localization | Partial | Shell/settings ready; product workflows are not fully localized |
 | Browser offline behavior | Implemented architecture/tests | Needs field soak, conflict, quota, and cold-start validation |
-| Installable PWA | Not evidenced | Launch gap |
+| Installable PWA | Implemented after audited revision | Generated/versioned shell and tests exist; deployed browser/device validation remains |
 | Native Android POS | Implemented subset/core tests | Needs productization and release evidence |
 | Barcode/labels/printer setup | Implemented plugins | Needs supported-device matrix |
 | Scale, serial, warranty, expiry | Implemented plugins | Vertical value; hardware/field validation varies |
@@ -219,7 +225,7 @@ Mekholi can become a global platform because its core boundaries are sound. Toda
 ### P1 — pilot-to-scale improvements
 
 1. Finish Bangla translation for cashier and core back-office workflows.
-2. Add standard PWA installability and app-shell/update recovery.
+2. Validate the new PWA installation, app-shell, update recovery, storage eviction, and offline deep-link behavior on the deployed target-browser/device matrix.
 3. Provide complete merchant data export and closure workflow.
 4. Decide payment strategy: clearly manual with reconciliation, or certified integrations.
 5. Productize hardware support with exact model/OS/browser requirements.

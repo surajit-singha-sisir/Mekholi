@@ -7,6 +7,13 @@ PosMate BD, E-hishab). Run on **2026-09-27** at `d5c0eb7`. Every "have" below
 was verified against the working tree, not the docs; every "missing" was
 verified by grep before it was written down.
 
+> **Historical baseline:** this document is preserved as the 27 September
+> snapshot. Several gaps have since shipped. In particular, gap #25 was closed
+> on 29 September with a manifest, install/maskable icons, generated versioned
+> app-shell service worker, deep-link fallback, safe update lifecycle, and
+> automated tests. Use `20-full-product-readiness-audit-2026-09-29.md` for the
+> current readiness decision.
+
 ---
 
 ## 1. What Mekholi already has (the baseline)
@@ -88,7 +95,7 @@ Where the global products are a generation ahead:
 
 | # | Gap | Notes |
 |---|---|---|
-| 25 | **PWA installability** | No web manifest and no service worker exist (`public/` has only `404.html` + favicon). Offline data works via IndexedDB, but the *app shell* still needs the network, and the app cannot be installed to a phone's home screen. For a browser-first POS this is the cheapest big win in the list. |
+| 25 | **PWA installability — shipped 2026-09-29** | Manifest, install/maskable icons, generated versioned app-shell service worker, offline History API fallback, cache cleanup, explicit safe update activation, and tests now exist. Deployed cross-browser/device validation remains a release-gate task. |
 | 26 | **Restaurant mode** | Tables, KOT/kitchen printing, order courses. Explicitly deferred (doc 08 §6) — noted here because every global comparison table has a restaurant column. |
 | 27 | **Hardware breadth** | Receipt printers and barcode scanners are covered (plugins). Cash drawer kick, customer pole display, and weighing-scale *live* (serial/HID) integration are not — the weight-scale plugin reads printed labels, not the scale itself. |
 | 28 | **Backup / data export for the owner** | Reports export CSV, but there is no "download all my data" (full org export). A trust feature every khata app advertises. |
@@ -124,8 +131,9 @@ Weighing BD-market urgency × effort × reuse of what already exists:
    and one RPC. Unblocks every migration from a competitor.
 3. **SMS receipts + owner summary (#2)** — one Edge Function and a settings
    panel; the `notifications` plugin slot is already on the roadmap.
-4. **PWA manifest + service worker (#25)** — days of work, changes the
-   product's install story on phones.
+4. **PWA manifest + service worker (#25) — shipped 2026-09-29.** Next, validate
+   install, update, storage-eviction and offline deep-link behavior on the
+   deployed browser/device matrix.
 5. **Branch switcher (#7)** — one RPC + one control; the schema is done.
 6. **bKash/Nagad integration (#1)** — bigger (merchant onboarding, callbacks,
    an Edge Function per gateway), but it is the headline feature local buyers
