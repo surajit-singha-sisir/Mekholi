@@ -23,7 +23,7 @@ import { searchInput, select, checkbox, field } from '../../components/ui/input'
 import { emptyState, panel } from '../../components/ui/card'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { printDocument } from '../../shared/export/download'
-import { formatMoney, minor, type Minor } from '../../shared/domain/money'
+import { formatMoney, minor } from '../../shared/domain/money'
 import type {
   PluginDb,
   PluginPageContext,
@@ -115,10 +115,14 @@ export function createLabelsScreen({ db }: { db: PluginDb }): PluginPageModule {
       /** Product id → number of copies. Presence means selected. */
       const chosen = new Map<string, number>()
 
+      // `plugin_products` sends the price in MINOR units (paisa) — migration
+      // 048's contract, "like every money value that crosses to a client".
+      // This screen once multiplied by 100 on top of that, which printed
+      // ৳25,000 shelf labels for a ৳250 bottle of oil.
       const money = (price: number | null): string | null =>
         price === null
           ? null
-          : formatMoney(minor(Math.round(price * 100) as Minor), { currency: ctx.currency })
+          : formatMoney(minor(Math.round(price)), { currency: ctx.currency })
 
       const visible = (): ProductSnapshot[] => {
         const term = search.trim().toLowerCase()
@@ -200,7 +204,7 @@ export function createLabelsScreen({ db }: { db: PluginDb }): PluginPageModule {
             return { name: product.name, sku: product.sku, price: money(product.price), copies: 1 }
           }
         }
-        return { name: 'Miniket Rice 5kg', sku: 'RICE-5KG', price: money(450), copies: 1 }
+        return { name: 'Miniket Rice 5kg', sku: 'RICE-5KG', price: money(45_000), copies: 1 }
       }
 
       function refreshPreview(): void {
