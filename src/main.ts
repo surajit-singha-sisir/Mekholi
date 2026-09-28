@@ -15,7 +15,7 @@
 
 import './styles/base.css'
 import { env } from './app/env'
-import { Router, appPath, type Route } from './app/router/router'
+import { Router, appPath, restoreInitialLocation, type Route } from './app/router/router'
 import { setNavigator } from './app/router/navigation'
 import { appShell, type AppShell } from './features/layout/app-shell'
 import { loginView, notConfiguredView } from './features/auth/login-view'
@@ -73,6 +73,12 @@ applyLocaleToDocument()
 // (or the OS setting) has to be on <html> while the first screen is built,
 // or the app flashes white and then corrects itself.
 initTheme()
+// GitHub Pages serves a deep link through public/404.html, which briefly
+// returns to the deploy root. Restore the requested History API path before
+// auth decides between the login page and a signed-in shell. The router is not
+// started for anonymous users, so doing this only in Router.start() was too
+// late and made `/developer` appear to forward permanently to `/Mekholi/`.
+restoreInitialLocation()
 
 const mountPoint = document.getElementById('app')
 if (!mountPoint) throw new Error('#app mount point missing from index.html')

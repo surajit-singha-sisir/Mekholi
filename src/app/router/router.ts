@@ -168,7 +168,15 @@ function absoluteRoute(to: string): string {
   return `${base === '/' ? '' : base.slice(0, -1)}${route}` || '/'
 }
 
-function migrateLegacyLocation(): void {
+/**
+ * Restore the route captured by the GitHub Pages 404 hand-off.
+ *
+ * This must also run before authentication bootstrap. An anonymous visitor to
+ * `/developer` is shown the shared login screen without starting the router;
+ * waiting for `Router.start()` would therefore leave the address bar at the
+ * Pages entry point and lose the intended post-login destination.
+ */
+export function restoreInitialLocation(): void {
   const hash = window.location.hash
   if (hash.startsWith('#/')) {
     const legacy = hash.slice(1)
@@ -226,7 +234,7 @@ export class Router {
 
   start(): void {
     if (this.#started) return
-    migrateLegacyLocation()
+    restoreInitialLocation()
     this.#started = true
     window.addEventListener('popstate', this.#onPopState)
     void this.#resolve()

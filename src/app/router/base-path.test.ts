@@ -123,6 +123,18 @@ describe('what the prefix is used for', () => {
   })
 })
 
+describe('the GitHub Pages deep-link hand-off', () => {
+  it('restores the captured path before authentication chooses the login screen', () => {
+    const main = readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8')
+    const restoreCall = main.indexOf('restoreInitialLocation()')
+    const authBootstrap = main.indexOf('await bootstrapSession()')
+
+    expect(restoreCall).toBeGreaterThan(-1)
+    expect(authBootstrap).toBeGreaterThan(-1)
+    expect(restoreCall).toBeLessThan(authBootstrap)
+  })
+})
+
 describe('the assets directory assumption', () => {
   it('matches what vite.config.ts actually builds', () => {
     // The relative-base branch strips a trailing `assets/`. If the build is
