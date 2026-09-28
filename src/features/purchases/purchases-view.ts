@@ -817,14 +817,14 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
           return
         }
         try {
-          const page = await repos.catalog.searchProducts({ search: term.trim(), warehouseId, limit: 20 })
-          if (page.items.length === 0) {
-            mount(resultsSlot, h('p', { class: 'py-4 text-center text-sm text-content-subtle', text: 'Nothing matched.' }))
+          const products = await repos.purchases.searchProducts(warehouseId, term.trim(), 20)
+          if (products.length === 0) {
+            mount(resultsSlot, h('p', { class: 'py-4 text-center text-sm text-content-subtle', text: 'Nothing matched. Search by product name or SKU.' }))
             return
           }
           mount(
             resultsSlot,
-            ...page.items.map((product) =>
+            ...products.map((product) =>
               h(
                 'button',
                 {

@@ -2414,6 +2414,17 @@ function toPurchase(row: PurchaseRaw): PurchaseRow {
 
 function createPurchases(client: SupabaseClient): PurchaseRepository {
   return {
+    async searchProducts(warehouseId, search, limit = 20) {
+      const rows = unwrap(
+        await client.rpc('purchase_products', {
+          p_warehouse_id: warehouseId,
+          p_search: search.trim() || null,
+          p_limit: Math.min(Math.max(limit, 1), 100),
+        })
+      ) as PosCatalogRow[]
+      return rows.map(toSellable)
+    },
+
     async list(query) {
       const limit = clampLimit(query.limit, 25)
       let builder = client

@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 70,
+  "migrations": 71,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -784,6 +784,26 @@
         {
           "name": "p_payment_keys",
           "type": "ARRAY",
+          "required": false
+        }
+      ]
+    },
+    "purchase_products": {
+      "returns": "jsonb",
+      "params": [
+        {
+          "name": "p_warehouse_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "p_search",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "p_limit",
+          "type": "integer",
           "required": false
         }
       ]

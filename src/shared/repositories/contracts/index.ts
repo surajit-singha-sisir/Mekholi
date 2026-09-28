@@ -565,6 +565,8 @@ export interface PurchaseDraftLine {
 }
 
 export interface PurchaseRepository {
+  /** Buy-side search includes products with zero stock in the destination warehouse. */
+  searchProducts(warehouseId: string, search: string, limit?: number): Promise<SellableProduct[]>
   list(query: PageRequest & { status?: string; supplierId?: string; search?: string }): Promise<Page<PurchaseRow>>
   get(id: string): Promise<PurchaseDetail | null>
   /** Creates when `id` is absent. Returns the purchase id. */
