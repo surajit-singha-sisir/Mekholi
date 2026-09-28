@@ -67,12 +67,16 @@ import {
   developerLogsView,
 } from './developer/views'
 import { controlPlane } from './developer/control-plane'
-import { registerPwa } from './app/pwa'
+import { mountPwaInstallNotice, registerPwa } from './app/pwa'
 
 // Register the versioned app shell without delaying the first till render.
 // IndexedDB still owns products and pending sales; the worker owns only the
 // executable shell, so authenticated API responses never enter Cache Storage.
 registerPwa()
+// Do not leave installation hidden behind a browser address-bar icon. The
+// notice uses the native prompt where available and exact menu guidance where
+// iOS and other browsers do not expose one.
+mountPwaInstallNotice()
 
 // `<html lang>` before the first paint, so Bangla picks the right font from
 // the very first frame rather than after the shell redraws.
