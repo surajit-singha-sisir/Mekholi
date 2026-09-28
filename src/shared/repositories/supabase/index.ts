@@ -2234,11 +2234,12 @@ interface SupplierRaw {
   address: string | null
   note: string | null
   balance: string
+  metadata: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
 
-const SUPPLIER_SELECT = 'id,name,phone,email,address,note,balance,created_at,updated_at'
+const SUPPLIER_SELECT = 'id,name,phone,email,address,note,balance,metadata,created_at,updated_at'
 
 function toSupplier(row: SupplierRaw): SupplierRow {
   return {
@@ -2250,6 +2251,7 @@ function toSupplier(row: SupplierRaw): SupplierRow {
     note: row.note,
     // Positive means the shop owes them.
     balance: toMinor(row.balance),
+    metadata: row.metadata ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -2303,6 +2305,7 @@ function createSuppliers(
             email: draft.email?.trim() || null,
             address: draft.address?.trim() || null,
             note: draft.note?.trim() || null,
+            ...(draft.metadata !== undefined ? { metadata: draft.metadata } : {}),
           })
           .select(SUPPLIER_SELECT)
           .returns<SupplierRaw[]>()
@@ -2319,6 +2322,7 @@ function createSuppliers(
       if (draft.email !== undefined) patch.email = draft.email?.trim() || null
       if (draft.address !== undefined) patch.address = draft.address?.trim() || null
       if (draft.note !== undefined) patch.note = draft.note?.trim() || null
+      if (draft.metadata !== undefined) patch.metadata = draft.metadata
 
       const rows = unwrap(
         await client.from('suppliers').update(patch).eq('id', id).select(SUPPLIER_SELECT).returns<SupplierRaw[]>()

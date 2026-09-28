@@ -40,6 +40,8 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   COMPLETED: 'success',
   PAID: 'success',
   ok: 'success',
+  settled: 'success',
+  due: 'warning',
   RECEIVED: 'success',
   PARTIALLY_PAID: 'warning',
   PARTIALLY_REFUNDED: 'warning',

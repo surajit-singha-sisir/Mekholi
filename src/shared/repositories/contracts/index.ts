@@ -488,6 +488,13 @@ export interface SupplierRow {
   address: string | null
   note: string | null
   balance: Minor
+  /**
+   * The trade-book extras every serious vendor card carries — contact
+   * person, payment terms, BIN/TIN, bank and wallet details. Stored in the
+   * suppliers.metadata jsonb column, so growing the card never needs a
+   * migration.
+   */
+  metadata: Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -498,6 +505,7 @@ export interface SupplierDraft {
   email?: string | null
   address?: string | null
   note?: string | null
+  metadata?: Record<string, unknown>
 }
 
 export interface PurchaseRow {
