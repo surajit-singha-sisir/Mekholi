@@ -542,7 +542,7 @@ export function productsView(options: ProductsViewOptions): HTMLElement {
               return { url: uploaded.url, thumbUrl: uploaded.thumbUrl }
             },
           }
-        : { disabledHint: 'Set VITE_IMGBB_API_KEY to add photos.' }),
+        : { disabledHint: 'Add an ImgBB key in Settings → Image uploads to add photos.' }),
     })
     const errorSlot = h('p', { class: 'text-sm text-danger mt-2 hidden' })
 
@@ -1073,7 +1073,7 @@ function openProductForm(options: FormOptions): void {
             return { url: uploaded.url, thumbUrl: uploaded.thumbUrl }
           },
         }
-      : { disabledHint: 'Set VITE_IMGBB_API_KEY to enable product photos.' }),
+      : { disabledHint: 'Add an ImgBB key in Settings → Image uploads to enable photos.' }),
   })
 
   const errorSlot = h('p', { class: 'text-sm text-danger mt-2 hidden' })
@@ -1318,7 +1318,7 @@ function openProductForm(options: FormOptions): void {
       field('Product image', imageField.root, {
         hint: imageUploadsEnabled()
           ? 'Hosted on ImgBB — only the link is stored. Drag a photo in, or shoot one on a phone.'
-          : 'Set VITE_IMGBB_API_KEY to enable product photos.',
+          : 'Add an ImgBB key in Settings → Image uploads to enable product photos.',
       }),
       ...basicPluginFields.map(renderPluginField),
       pluginFormSectionsHost(registry, {

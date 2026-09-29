@@ -125,9 +125,21 @@ export const en = {
   'settings.languageHint': 'Changes the app language straight away, for everyone in this shop.',
   'settings.shopLogo': 'Shop logo',
   'settings.shopLogoHint': 'Shown on receipts when the option below is on. Hosted on ImgBB; only the link is stored.',
-  'settings.shopLogoDisabled': 'Set VITE_IMGBB_API_KEY to upload a logo.',
+  'settings.shopLogoDisabled': 'Add an ImgBB key under Image uploads below to upload a logo.',
   'settings.save': 'Save settings',
   'settings.saved': 'Settings saved',
+
+  'settings.imageUploads': 'Image uploads',
+  'settings.imgbbIntro':
+    'Product photos and your shop logo are hosted on ImgBB. Add a free key here and uploads switch on for every device in this shop — no reinstall, no developer.',
+  'settings.imgbbKey': 'ImgBB API key',
+  'settings.imgbbKeyHint':
+    'Free from api.imgbb.com. It is an upload-only public key: it cannot read your account, delete your images or be billed.',
+  'settings.imgbbTest': 'Test key',
+  'settings.imgbbOnShop': 'Uploads are on, using this shop’s key.',
+  'settings.imgbbOnBuild': 'Uploads are on, using the key this installation shipped with.',
+  'settings.imgbbOff': 'Uploads are off. Add a key to enable product photos and the shop logo.',
+  'settings.imgbbSaved': 'Key saved. Photos work on this device now, and on the others when they next open the app.',
 
   'settings.receiptDevice': 'Receipt and device',
   'settings.receiptFooter': 'Receipt footer',
@@ -252,9 +264,21 @@ export const bn: Partial<Record<StringKey, string>> = {
   'settings.languageHint': 'অ্যাপের ভাষা সঙ্গে সঙ্গে বদলে যাবে, এই দোকানের সবার জন্য।',
   'settings.shopLogo': 'দোকানের লোগো',
   'settings.shopLogoHint': 'নিচের অপশনটি চালু থাকলে রসিদে ছাপা হবে। ছবি ImgBB-তে থাকে, শুধু লিঙ্কটি সংরক্ষিত হয়।',
-  'settings.shopLogoDisabled': 'লোগো আপলোড করতে VITE_IMGBB_API_KEY দিন।',
+  'settings.shopLogoDisabled': 'লোগো আপলোড করতে নিচের “ছবি আপলোড” অংশে ImgBB কী দিন।',
   'settings.save': 'সেটিংস সংরক্ষণ করুন',
   'settings.saved': 'সেটিংস সংরক্ষিত হয়েছে',
+
+  'settings.imageUploads': 'ছবি আপলোড',
+  'settings.imgbbIntro':
+    'পণ্যের ছবি আর দোকানের লোগো ImgBB-তে রাখা হয়। এখানে একটি ফ্রি কী দিলেই এই দোকানের সব ডিভাইসে আপলোড চালু হয়ে যাবে — নতুন করে ইনস্টল বা ডেভেলপার লাগবে না।',
+  'settings.imgbbKey': 'ImgBB API কী',
+  'settings.imgbbKeyHint':
+    'api.imgbb.com থেকে ফ্রি নিন। এটি শুধু আপলোডের পাবলিক কী — এটি দিয়ে আপনার অ্যাকাউন্ট দেখা, ছবি মোছা বা বিল করা যায় না।',
+  'settings.imgbbTest': 'কী পরীক্ষা করুন',
+  'settings.imgbbOnShop': 'আপলোড চালু আছে, এই দোকানের কী দিয়ে।',
+  'settings.imgbbOnBuild': 'আপলোড চালু আছে, ইনস্টলেশনের সঙ্গে আসা কী দিয়ে।',
+  'settings.imgbbOff': 'আপলোড বন্ধ আছে। পণ্যের ছবি ও দোকানের লোগোর জন্য একটি কী দিন।',
+  'settings.imgbbSaved': 'কী সংরক্ষিত হয়েছে। এই ডিভাইসে এখনই ছবি কাজ করবে, বাকিগুলোতে পরের বার অ্যাপ খুললেই।',
 
   'settings.receiptDevice': 'রসিদ ও ডিভাইস',
   'settings.receiptFooter': 'রসিদের নিচের লেখা',

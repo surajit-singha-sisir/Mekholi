@@ -192,7 +192,10 @@ export function parseImgbbResponse(status: number, body: string): UploadedImage 
   if (status < 200 || status >= 300 || envelope.success !== true || !url) {
     const message = envelope.error?.message?.trim()
     if (status === 400 && message && /api key/i.test(message)) {
-      throw new ImageUploadError('rejected', 'The ImgBB key was refused. Check VITE_IMGBB_API_KEY.')
+      throw new ImageUploadError(
+        'rejected',
+        'The ImgBB key was refused. Check it in Settings → Image uploads.'
+      )
     }
     throw new ImageUploadError(
       status >= 500 ? 'network' : 'rejected',
@@ -306,7 +309,7 @@ export function createImgbbClient(config: ImgbbConfig): ImgbbClient {
       if (apiKey.length === 0) {
         throw new ImageUploadError(
           'not-configured',
-          'Image uploads are switched off. Set VITE_IMGBB_API_KEY to enable them.'
+          'Image uploads are switched off. Add an ImgBB key in Settings → Image uploads.'
         )
       }
       assertValid(file, MAX_IMAGE_BYTES)
@@ -342,5 +345,73 @@ export function createImgbbClient(config: ImgbbConfig): ImgbbClient {
         ? lastError
         : new ImageUploadError('network', 'The image upload failed.')
     },
+  }
+}
+
+// ── Key probe ─────────────────────────────────────────────────────────────
+
+/**
+ * A 1×1 transparent PNG, 68 bytes on the wire.
+ *
+ * ImgBB publishes no "is this key valid?" endpoint — upload is the whole API.
+ * So the only honest test of a key is an upload, and the only considerate one
+ * is an upload this small: it costs a shop on a phone line nothing, and with
+ * `expiration` set it deletes itself before anyone could find it.
+ */
+const PROBE_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+
+/** ImgBB's shortest permitted lifetime. The probe image needs no longer. */
+export const PROBE_EXPIRY_SECONDS = 60
+
+/** The 1×1 PNG as a `File`, built in memory — nothing is read from disk. */
+export function imgbbProbeFile(): File {
+  if (typeof atob !== 'function') {
+    throw new ImageUploadError('network', 'This device cannot build the test image.')
+  }
+  const binary = atob(PROBE_PNG_BASE64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new File([bytes], 'mekholi-key-test.png', { type: 'image/png' })
+}
+
+/** The answer to "does this key work?", in words a shopkeeper can act on. */
+export interface KeyProbeResult {
+  readonly ok: boolean
+  readonly message: string
+}
+
+/**
+ * Tries one tiny upload and reports whether the key was accepted.
+ *
+ * Never retried. A key test that silently attempts twice turns a flaky
+ * answer into a confident one, and the whole point of the button is to tell
+ * the truth about a key before a shop trusts it with a photo.
+ */
+export async function probeImgbbKey(config: ImgbbConfig): Promise<KeyProbeResult> {
+  const apiKey = config.apiKey.trim()
+  if (apiKey.length === 0) {
+    return { ok: false, message: 'Enter an ImgBB key first.' }
+  }
+
+  const client = createImgbbClient({
+    apiKey,
+    retries: 0,
+    ...(config.transport ? { transport: config.transport } : {}),
+  })
+
+  try {
+    await client.upload(imgbbProbeFile(), {
+      name: 'mekholi-key-test',
+      expirationSeconds: PROBE_EXPIRY_SECONDS,
+    })
+    return { ok: true, message: 'That key works. The test image deletes itself in a minute.' }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'The key could not be checked.',
+    }
   }
 }

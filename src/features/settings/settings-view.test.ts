@@ -30,6 +30,7 @@ const settingsRow = {
 }
 
 const getSettings = vi.fn(async () => settingsRow)
+const updateSettings = vi.fn(async () => settingsRow)
 const listAllTaxes = vi.fn(async () => [
   { id: 't-1', name: 'VAT', rate: 15, is_inclusive: false, is_active: true },
 ])
@@ -39,7 +40,7 @@ const listAllPaymentMethods = vi.fn(async () => [
 
 vi.mock('../../app/data', () => ({
   getRepositories: () => ({
-    organization: { getSettings, updateSettings: vi.fn() },
+    organization: { getSettings, updateSettings },
     catalog: { listAllTaxes, listAllPaymentMethods, updatePaymentMethod: vi.fn(), createTax: vi.fn(), updateTax: vi.fn() },
   }),
 }))
@@ -48,8 +49,27 @@ vi.mock('../../app/state/session', () => ({
   can: () => true,
 }))
 
+/**
+ * The image layer is stubbed rather than exercised: this file is about the
+ * settings screen, and a real client would reach for `localStorage` and the
+ * network. `imageKeySource` is the one knob the ImgBB card reads, so the
+ * tests below drive it to check the status line.
+ */
+let keySource: 'shop' | 'build' | 'none' = 'none'
+const setImageUploadKey = vi.fn()
+const probeImageUploadKey = vi.fn(async (_key: string) => ({
+  ok: true,
+  message: 'That key works.',
+}))
+
 vi.mock('../../app/images', () => ({
+  IMGBB_SETTINGS_KEY: 'imgbbApiKey',
+  adoptImageUploadKey: vi.fn(),
+  imageKeySource: () => keySource,
+  imageUploadKey: () => '',
   imageUploadsEnabled: () => false,
+  probeImageUploadKey: (key: string) => probeImageUploadKey(key),
+  setImageUploadKey: (key: string | null) => setImageUploadKey(key),
   uploadImage: vi.fn(),
   validateImageFile: () => null,
 }))
@@ -67,6 +87,10 @@ describe('settingsView', () => {
     resetI18nForTests()
     resetThemeForTests()
     getSettings.mockClear()
+    updateSettings.mockClear()
+    setImageUploadKey.mockClear()
+    probeImageUploadKey.mockClear()
+    keySource = 'none'
     listAllTaxes.mockClear().mockResolvedValue([
       { id: 't-1', name: 'VAT', rate: 15, is_inclusive: false, is_active: true },
     ])
@@ -181,10 +205,73 @@ describe('settingsView', () => {
     expect((root.querySelector('select[data-field="timezone"]') as HTMLSelectElement).value).toBe('Mars/Olympus')
   })
 
-  it('does not lecture the shopkeeper about where the logo is stored', async () => {
-    const root = settingsView()
-    await settle()
-    expect(root.textContent).not.toContain('ImgBB')
+  /**
+   * Image uploads used to be unreachable: the ImgBB key was a build-time
+   * `VITE_` variable, so every deployment nobody had rebuilt drew disabled
+   * pickers and told the shopkeeper to edit an environment file. These hold
+   * the fix in place — a key an owner can type, test and save.
+   */
+  describe('the ImgBB card', () => {
+    it('never tells a shopkeeper to set an environment variable', async () => {
+      const root = settingsView()
+      await settle()
+      expect(root.textContent).not.toContain('VITE_')
+    })
+
+    it('offers a key field and says uploads are off when there is none', async () => {
+      keySource = 'none'
+      const root = settingsView()
+      await settle()
+      expect(root.textContent).toContain(t('settings.imageUploads'))
+      expect(root.querySelector('input[data-field="imgbbApiKey"]')).not.toBeNull()
+      const status = root.querySelector('[data-field="imgbbStatus"]')
+      expect(status?.textContent).toBe(t('settings.imgbbOff'))
+    })
+
+    it('credits the shop’s own key once one is in force', async () => {
+      keySource = 'shop'
+      const root = settingsView()
+      await settle()
+      expect(root.querySelector('[data-field="imgbbStatus"]')?.textContent).toBe(
+        t('settings.imgbbOnShop')
+      )
+    })
+
+    it('saves the key into the shop settings and switches uploads on', async () => {
+      const root = settingsView()
+      await settle()
+      const keyField = root.querySelector('input[data-field="imgbbApiKey"]') as HTMLInputElement
+      keyField.value = '  abc123  '
+
+      const save = [...root.querySelectorAll('button')].filter((b) =>
+        b.textContent?.includes(t('settings.save'))
+      )
+      // Two save buttons on the page; the ImgBB card owns the last one.
+      save[save.length - 1]?.click()
+      await settle()
+
+      expect(updateSettings).toHaveBeenCalledWith({
+        settings: expect.objectContaining({ imgbbApiKey: 'abc123' }),
+      })
+      // Trimmed, and handed to the image layer so photos work without a reload.
+      expect(setImageUploadKey).toHaveBeenCalledWith('abc123')
+    })
+
+    it('tests a typed key before it is saved over a working one', async () => {
+      const root = settingsView()
+      await settle()
+      const keyField = root.querySelector('input[data-field="imgbbApiKey"]') as HTMLInputElement
+      keyField.value = 'candidate-key'
+
+      const test = [...root.querySelectorAll('button')].find((b) =>
+        b.textContent?.includes(t('settings.imgbbTest'))
+      )
+      test?.click()
+      await settle()
+
+      expect(probeImageUploadKey).toHaveBeenCalledWith('candidate-key')
+      expect(updateSettings).not.toHaveBeenCalled()
+    })
   })
 
   it('keeps the logo preview square', async () => {

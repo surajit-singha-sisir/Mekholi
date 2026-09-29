@@ -19,6 +19,7 @@ import { sessionStore, activeOrganization, can } from '../../app/state/session'
 import { salesFloorStore, setActiveBranch } from '../../app/state/sales-floor'
 import { offlineStatus } from '../../app/state/offline'
 import { getRepositories } from '../../app/data'
+import { adoptImageUploadKey } from '../../app/images'
 import { pluginHeaderHost } from '../../app/plugin-slots'
 import { appPath } from '../../app/router/router'
 import { selectOrganization } from '../../app/platform/auth'
@@ -645,9 +646,15 @@ function profileMenu(options: {
 
   // The shop's own logo, when it has uploaded one. Fetched once, and a failure
   // is not worth a word: the initial is a perfectly good avatar.
+  //
+  // The same response carries the shop's ImgBB key, so it is adopted here
+  // rather than costing a second round trip. This is the boot-time half of
+  // the contract in `app/images.ts`: by the time a product form is opened,
+  // the pickers already know whether uploads are available.
   void (async () => {
     try {
       const settings = await getRepositories().organization.getSettings()
+      adoptImageUploadKey(settings.settings)
       if (!settings.logoUrl) return
       const img = h('img', {
         src: settings.logoUrl,

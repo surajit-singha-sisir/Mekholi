@@ -15,7 +15,17 @@ import { modal } from '../../components/feedback/modal'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { getRepositories } from '../../app/data'
 import { can } from '../../app/state/session'
-import { imageUploadsEnabled, uploadImage, validateImageFile } from '../../app/images'
+import {
+  adoptImageUploadKey,
+  imageKeySource,
+  imageUploadKey,
+  imageUploadsEnabled,
+  probeImageUploadKey,
+  setImageUploadKey,
+  uploadImage,
+  validateImageFile,
+  IMGBB_SETTINGS_KEY,
+} from '../../app/images'
 import { translateError } from '../../app/platform/errors'
 import { applyShopLocale, locale as activeLocale, setLocale, t, LOCALE_NAMES } from '../../shared/i18n'
 import { currencyOptions } from '../../shared/domain/currencies'
@@ -28,6 +38,8 @@ interface SettingsBag {
   receiptShowLogo?: boolean
   autoPrintReceipt?: boolean
   deviceName?: string
+  /** The shop's own ImgBB upload key (docs/15). Public by ImgBB's design. */
+  imgbbApiKey?: string
   [key: string]: unknown
 }
 
@@ -58,6 +70,11 @@ export function settingsView(): HTMLElement {
     try {
       // The shop profile is the screen. Without it there is nothing to show.
       settings = await repos.organization.getSettings()
+      // Before anything renders: the image pickers below ask
+      // `imageUploadsEnabled()` while they are being built, and a shop whose
+      // key lives only in the database would otherwise draw them disabled
+      // on the very screen that configures them.
+      adoptImageUploadKey(settings.settings)
       // The shop's saved language seeds a device that has not chosen one. It
       // must not *override* a choice made here: this load runs again on every
       // redraw, and a redraw is exactly what switching the language causes.
@@ -141,7 +158,7 @@ export function settingsView(): HTMLElement {
               return { url: uploaded.url, thumbUrl: uploaded.thumbUrl }
             },
           }
-        : { disabledHint: 'Set VITE_IMGBB_API_KEY to upload a logo.' }),
+        : { disabledHint: t('settings.shopLogoDisabled') }),
     })
     // Named for the tests and for anyone inspecting the page: with five
     // controls on one card, "the first select" is not an identity.
@@ -198,6 +215,15 @@ export function settingsView(): HTMLElement {
       ),
       h('div', { class: 'mt-4 flex justify-end' }, saveButton)
     )
+
+    // ── Image uploads ────────────────────────────────────────────────────
+    // The key that makes every picture in the app possible, in the one place
+    // an owner can reach. It was a build-time variable, which meant product
+    // photos were switched off in every deployment nobody had rebuilt — and
+    // the disabled hint told a shopkeeper to edit an environment file. This
+    // card is the fix: paste a key, test it, save it, and every device in
+    // the shop has photos on the next load (docs/15).
+    const imgbbCard = buildImageUploadCard(bag)
 
     // ── Appearance ───────────────────────────────────────────────────────
     // A device preference, not a shop one: the counter tablet under a shop
@@ -258,10 +284,126 @@ export function settingsView(): HTMLElement {
           })
         : null,
       businessCard,
+      imgbbCard,
       appearanceCard,
       receiptCard,
       taxesCard,
       paymentCard
+    )
+  }
+
+  /**
+   * The ImgBB card.
+   *
+   * Three things an owner needs and had none of: to see whether uploads are
+   * on, to test a key before trusting it, and to save it without a deploy.
+   *
+   * It saves on its own rather than through the Shop details button, and it
+   * writes the new key back into the captured `bag` afterwards — the other
+   * card spreads `...bag` when it saves, so skipping that would let a later
+   * "Save shop details" quietly wipe the key that had just been stored.
+   */
+  function buildImageUploadCard(bag: SettingsBag): HTMLElement {
+    const editable = can('settings.business')
+    const keyInput = input({
+      value: imageUploadKey(),
+      placeholder: 'e.g. 2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
+      autocomplete: 'off',
+      disabled: !editable,
+    })
+    keyInput.dataset.field = 'imgbbApiKey'
+    keyInput.spellcheck = false
+
+    const statusSlot = h('p', { class: 'text-xs', dataset: { field: 'imgbbStatus' } })
+    const resultSlot = h('p', { class: 'mt-2 text-xs hidden', role: 'status' })
+
+    /**
+     * Reflects the key that is *in force*, not the text in the box. A typed
+     * but unsaved key has changed nothing yet, and saying otherwise is how
+     * an owner ends up believing uploads work when they do not.
+     */
+    function drawStatus(): void {
+      const source = imageKeySource()
+      const label =
+        source === 'shop'
+          ? t('settings.imgbbOnShop')
+          : source === 'build'
+            ? t('settings.imgbbOnBuild')
+            : t('settings.imgbbOff')
+      statusSlot.textContent = label
+      statusSlot.className =
+        source === 'none' ? 'text-xs text-content-muted' : 'text-xs text-success'
+    }
+
+    function showResult(ok: boolean, message: string): void {
+      resultSlot.textContent = message
+      resultSlot.className = `mt-2 text-xs ${ok ? 'text-success' : 'text-danger'}`
+      resultSlot.classList.remove('hidden')
+    }
+
+    const testButton = button(t('settings.imgbbTest'), {
+      variant: 'outline',
+      icon: 'science',
+      disabled: !editable,
+    })
+    const saveKeyButton = button(t('settings.save'), {
+      variant: 'primary',
+      icon: 'save',
+      disabled: !editable,
+    })
+
+    testButton.addEventListener('click', () => {
+      void (async () => {
+        const candidate = keyInput.value.trim()
+        testButton.disabled = true
+        resultSlot.classList.add('hidden')
+        try {
+          const probe = await probeImageUploadKey(candidate)
+          showResult(probe.ok, probe.message)
+        } finally {
+          testButton.disabled = !editable
+        }
+      })()
+    })
+
+    saveKeyButton.addEventListener('click', () => {
+      void (async () => {
+        const next = keyInput.value.trim()
+        saveKeyButton.disabled = true
+        try {
+          settings = await repos.organization.updateSettings({
+            settings: { ...bag, [IMGBB_SETTINGS_KEY]: next },
+          })
+          // The captured bag is what Shop details will spread on its next
+          // save. Mutating it keeps the two cards from overwriting one
+          // another without forcing a full redraw that would throw away
+          // whatever the owner has half-typed elsewhere on the page.
+          bag[IMGBB_SETTINGS_KEY] = next
+          setImageUploadKey(next)
+          drawStatus()
+          showResult(true, t('settings.imgbbSaved'))
+          toastSuccess(t('settings.saved'))
+        } catch (error) {
+          const translated = translateError(error)
+          showResult(false, translated.message)
+          toastError(translated.message)
+        } finally {
+          saveKeyButton.disabled = !editable
+        }
+      })()
+    })
+
+    drawStatus()
+
+    return card(
+      t('settings.imageUploads'),
+      h('p', { class: 'text-sm text-content-muted', text: t('settings.imgbbIntro') }),
+      h('div', { class: 'mt-3' },
+        field(t('settings.imgbbKey'), keyInput, { hint: t('settings.imgbbKeyHint') })
+      ),
+      h('div', { class: 'mt-1' }, statusSlot),
+      resultSlot,
+      h('div', { class: 'mt-4 flex flex-wrap justify-end gap-2' }, testButton, saveKeyButton)
     )
   }
 

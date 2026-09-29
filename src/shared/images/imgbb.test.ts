@@ -14,9 +14,12 @@ import {
   createImgbbClient,
   formatBytes,
   ImageUploadError,
+  imgbbProbeFile,
   imgbbUploadUrl,
   MAX_IMAGE_BYTES,
   parseImgbbResponse,
+  probeImgbbKey,
+  PROBE_EXPIRY_SECONDS,
   validateImageFile,
   type UploadTransport,
 } from './imgbb'
@@ -108,7 +111,7 @@ describe('parseImgbbResponse', () => {
     expect(() => parseImgbbResponse(400, body)).toThrowError(/Image file is empty/)
   })
 
-  it('names the setting when the key is the problem', () => {
+  it('points at the screen that fixes it when the key is the problem', () => {
     const body = JSON.stringify({ error: { message: 'Invalid API key' } })
     try {
       parseImgbbResponse(400, body)
@@ -116,7 +119,7 @@ describe('parseImgbbResponse', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ImageUploadError)
       expect((error as ImageUploadError).reason).toBe('rejected')
-      expect((error as ImageUploadError).message).toMatch(/VITE_IMGBB_API_KEY/)
+      expect((error as ImageUploadError).message).toMatch(/Settings . Image uploads/)
     }
   })
 
@@ -141,7 +144,7 @@ describe('createImgbbClient', () => {
     const client = createImgbbClient({ apiKey: '  ', transport: okTransport })
     expect(client.enabled).toBe(false)
     await expect(client.upload(fakeFile('a.png', 'image/png', 10))).rejects.toThrowError(
-      /VITE_IMGBB_API_KEY/
+      /Settings . Image uploads/
     )
   })
 
@@ -217,5 +220,66 @@ describe('createImgbbClient', () => {
       client.upload(fakeFile('a.png', 'image/png', 2048), { signal: controller.signal })
     ).rejects.toThrowError(/cancelled/)
     expect(transport).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The key probe.
+ *
+ * ImgBB has no "is this key valid?" endpoint, so the only honest test of a
+ * key is an upload. What matters is that the test is cheap (one pixel), self
+ * cleaning (it expires), truthful (never retried into a false pass) and
+ * costs nothing when there is no key to test.
+ */
+describe('probeImgbbKey', () => {
+  it('refuses an empty key without touching the network', async () => {
+    const transport = vi.fn<UploadTransport>()
+    const result = await probeImgbbKey({ apiKey: '   ', transport })
+    expect(result.ok).toBe(false)
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('uploads one tiny pixel that deletes itself, and says the key works', async () => {
+    const seen: string[] = []
+    const transport: UploadTransport = async ({ url }) => {
+      seen.push(url)
+      return { status: 200, body: OK_BODY }
+    }
+
+    const result = await probeImgbbKey({ apiKey: 'good-key', transport })
+
+    expect(result.ok).toBe(true)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toContain('key=good-key')
+    // Set, and set to ImgBB's shortest window: a key test must not leave an
+    // image behind on someone's account.
+    expect(seen[0]).toContain(`expiration=${PROBE_EXPIRY_SECONDS}`)
+  })
+
+  it('reports a refused key in ImgBB’s own words rather than throwing', async () => {
+    const transport: UploadTransport = async () => ({
+      status: 400,
+      body: JSON.stringify({ error: { message: 'Invalid API key' } }),
+    })
+    const result = await probeImgbbKey({ apiKey: 'bad-key', transport })
+    expect(result.ok).toBe(false)
+    expect(result.message).toMatch(/Settings . Image uploads/)
+  })
+
+  it('never retries — a flaky pass is worse than an honest failure', async () => {
+    const transport = vi.fn<UploadTransport>(async () => {
+      throw new ImageUploadError('network', 'The image host could not be reached.')
+    })
+    const result = await probeImgbbKey({ apiKey: 'some-key', transport })
+    expect(result.ok).toBe(false)
+    expect(transport).toHaveBeenCalledTimes(1)
+  })
+
+  it('builds a real 1×1 PNG, not a placeholder', () => {
+    const file = imgbbProbeFile()
+    expect(file.type).toBe('image/png')
+    expect(file.size).toBeGreaterThan(0)
+    // Whatever the probe sends must pass the app's own front door.
+    expect(validateImageFile(file)).toBeNull()
   })
 })

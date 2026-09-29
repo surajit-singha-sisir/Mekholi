@@ -94,10 +94,10 @@ describe('imagePicker', () => {
   })
 
   it('renders disabled with an explanation when no uploader is given', () => {
-    const picker = imagePicker({ disabledHint: 'Set VITE_IMGBB_API_KEY to enable uploads.' })
+    const picker = imagePicker({ disabledHint: 'Add an ImgBB key in Settings to enable uploads.' })
     const choosePhoto = picker.root.querySelector('button') as HTMLButtonElement
     expect(choosePhoto.disabled).toBe(true)
-    expect(picker.root.textContent).toContain('VITE_IMGBB_API_KEY')
+    expect(picker.root.textContent).toContain('Add an ImgBB key in Settings')
   })
 
   it('surfaces an upload failure to the caller instead of swallowing it', async () => {
