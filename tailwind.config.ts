@@ -12,6 +12,17 @@ export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,html}'],
   theme: {
+    // Full screen list (defaults + a small-phone `xs` at 420px), kept in
+    // ascending order so Tailwind emits the `max-*` variants correctly. The
+    // sticky header uses `max-xs:` to compact itself on the narrowest phones.
+    screens: {
+      xs: '420px',
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         primary: {

@@ -119,7 +119,7 @@ export function appShell(options: AppShellOptions): AppShell {
   drawer.addEventListener('click', (event) => {
     if (event.target === drawer) closeDrawer()
   })
-  const titleEl = h('h1', { class: 'truncate text-base font-semibold text-content', text: 'Mekholi' })
+  const titleEl = h('h1', { class: 'truncate text-base font-semibold text-content max-xs:text-sm', text: 'Mekholi' })
   const subtitleEl = h('p', { class: 'truncate text-xs text-content-muted' })
 
   const palette = new CommandPalette({
@@ -246,21 +246,27 @@ export function appShell(options: AppShellOptions): AppShell {
       h(
         'header',
         {
+          // On phones ≤420px the bar tightens up: shorter height, smaller
+          // side padding and gaps, so the title and the corner controls stop
+          // fighting for room. Everything above `xs` is unchanged.
           class:
-            'sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4',
+            'sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 ' +
+            'max-xs:h-12 max-xs:gap-1.5 max-xs:px-2',
         },
         iconButton('menu', 'Open navigation', {
           variant: 'ghost',
           // 48px: the one control that has to be hit with a thumb, one-handed,
-          // while the other hand is holding a customer's change.
+          // while the other hand is holding a customer's change. On the
+          // narrowest phones it steps down to 40px with a smaller glyph so the
+          // corner controls still fit.
           size: 'lg',
-          class: 'lg:hidden',
+          class: 'lg:hidden max-xs:h-10 max-xs:w-10 max-xs:[&_.material-symbols-rounded]:text-xl',
           onClick: () => toggleDrawer(),
         }),
         h('img', {
           src: './icons/mekholi-192.png',
           alt: 'Mekholi logo',
-          class: 'h-8 w-8 shrink-0 rounded-lg shadow-sm lg:hidden',
+          class: 'h-8 w-8 shrink-0 rounded-lg shadow-sm lg:hidden max-xs:h-7 max-xs:w-7',
           width: '32',
           height: '32',
         }),
@@ -272,7 +278,7 @@ export function appShell(options: AppShellOptions): AppShell {
         ),
         h(
           'div',
-          { class: 'flex items-center gap-2' },
+          { class: 'flex items-center gap-2 max-xs:gap-1' },
           // Plugin controls that earned a place on the one always-visible
           // strip — a notification bell, a sync light (docs/05 §7).
           pluginHeaderHost(registry),
@@ -382,7 +388,8 @@ function branchSwitcher(registry: PluginRegistry): HTMLElement {
       'aria-label': 'Branch',
       class:
         'h-9 max-w-[10rem] truncate rounded-md border border-border bg-surface px-2 text-sm ' +
-        'text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
+        'max-xs:h-8 max-xs:max-w-[7rem] max-xs:px-1.5',
     }) as HTMLSelectElement
     for (const branch of branches) {
       select.append(
@@ -431,11 +438,11 @@ function posButton(onNavigate: (path: string) => void): HTMLElement {
         // the only two things in that corner.
         'inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-semibold ' +
         'text-primary-contrast transition-colors hover:bg-primary-hover focus:outline-none ' +
-        'focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:ring-2 focus-visible:ring-ring max-xs:h-8 max-xs:px-2',
       title: 'Point of Sale',
       onClick: () => onNavigate('/pos'),
     },
-    icon('point_of_sale', 'text-lg'),
+    icon('point_of_sale', 'text-lg max-xs:text-base'),
     // The word disappears on a phone; the icon and the shape carry it.
     h('span', { class: 'hidden sm:inline', text: 'POS' })
   )
@@ -471,7 +478,7 @@ function profileMenu(options: {
     {
       class:
         'grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-primary ' +
-        'text-primary-contrast ring-1 ring-border',
+        'text-primary-contrast ring-1 ring-border max-xs:h-8 max-xs:w-8',
     },
     initial
   )

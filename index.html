@@ -2,7 +2,16 @@
 <html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
+      Lock the viewport at 1× and disable pinch-zoom. This app is an
+      installable POS shell, not a scrollable document — zoom only ever left
+      the sticky header and cart misaligned. `user-scalable=no` +
+      `maximum-scale=1.0` stops the pinch gesture on both iOS and Android.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="Mekholi — a universal retail POS platform with a plugin architecture." />
     <!--
