@@ -36,6 +36,7 @@ import { translateError } from '../../app/platform/errors'
 import type { ReportCell, ReportColumn, SaleDetail, SalesListRow } from '../../shared/repositories/contracts'
 import type { PaymentMethod } from '../../shared/types/records'
 import { buildReceipt, printReceipt, saveReceiptFile, showReceipt, type ReceiptData } from '../pos'
+import { saleDue } from './sale-due'
 
 export interface SalesViewOptions {
   /** The plugin host: tabs registered by enabled plugins appear on a sale. */
@@ -89,7 +90,9 @@ export function salesView(options: SalesViewOptions): HTMLElement {
   ]
 
   function toReportRow(row: SalesListRow): Record<string, ReportCell> {
-    const due = Math.max(0, Number(row.total) - Number(row.paidTotal))
+    // The same rule as the due book: a cancelled or fully refunded sale owes
+    // nothing, so it never shows a due here either (see ./sale-due).
+    const due = saleDue(row.status, Number(row.total), Number(row.paidTotal))
     return {
       id: row.id,
       invoice: row.invoiceNo,
@@ -112,7 +115,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
     const sold = rows.reduce((sum, row) => sum + Number(row.total), 0)
     const collected = rows.reduce((sum, row) => sum + Number(row.paidTotal), 0)
     const outstanding = rows.reduce(
-      (sum, row) => sum + Math.max(0, Number(row.total) - Number(row.paidTotal)),
+      (sum, row) => sum + saleDue(row.status, Number(row.total), Number(row.paidTotal)),
       0
     )
     const stat = (label: string, value: string, iconName: string, warn?: boolean): HTMLElement =>
@@ -231,6 +234,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
 
     const visible = visibleRows()
     const soldTotal = visible.reduce((sum, row) => sum + Number(row['total'] ?? 0), 0)
+    const paidTotal = visible.reduce((sum, row) => sum + Number(row['paid'] ?? 0), 0)
     const dueTotal = visible.reduce((sum, row) => sum + Number(row['due'] ?? 0), 0)
 
     const toolbar = exportToolbar({
@@ -258,7 +262,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
           dataTable({
             columns: SALES_COLUMNS,
             rows: visible,
-            totals: { total: soldTotal, paid: soldTotal - dueTotal, due: dueTotal },
+            totals: { total: soldTotal, paid: paidTotal, due: dueTotal },
             currency,
             sort: sortKey,
             dir: sortDir,
