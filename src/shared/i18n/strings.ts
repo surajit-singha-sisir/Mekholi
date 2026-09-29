@@ -200,9 +200,9 @@ export const bn: Partial<Record<StringKey, string>> = {
 
   // ── Navigation ─────────────────────────────────────────────────────────
   'nav.dashboard': 'ড্যাশবোর্ড',
-  'nav.pos': 'বিক্রয় কাউন্টার',
+  'nav.pos': 'পয়েন্ট অব সেল',
   'nav.sales': 'বিক্রয়',
-  'nav.customers': 'ক্রেতা',
+  'nav.customers': 'কাস্টমার',
   'nav.products': 'পণ্য',
   'nav.catalogue': 'ক্যাটালগ',
   'nav.stock': 'স্টক',
@@ -210,7 +210,7 @@ export const bn: Partial<Record<StringKey, string>> = {
   'nav.purchases': 'ক্রয়',
   'nav.expenses': 'খরচ',
   'nav.reports': 'রিপোর্ট',
-  'nav.analytics': 'বিশ্লেষণ',
+  'nav.analytics': 'এনালাইসিস',
   'nav.register': 'ক্যাশ রেজিস্টার',
   'nav.users': 'কর্মী',
   'nav.roles': 'ভূমিকা',

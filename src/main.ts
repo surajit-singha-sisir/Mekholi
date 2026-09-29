@@ -52,6 +52,10 @@ import { userRoutes } from './features/users'
 import { roleRoutes } from './features/roles'
 import { sessionStore, can } from './app/state/session'
 import { applyToDocument as applyLocaleToDocument, onLocaleChange } from './shared/i18n'
+import {
+  installAutoTranslate,
+  onLocaleForAutoTranslate,
+} from './shared/i18n/auto-translate'
 import { initTheme } from './shared/theme'
 import { translateError } from './app/platform/errors'
 import { h } from './components/ui/h'
@@ -523,18 +527,23 @@ function enterApp(): void {
  * palette) and the router re-renders the current screen in place. Nobody has
  * to sign out, and nothing in the address bar changes.
  */
-onLocaleChange(() => {
-  if (!shell) return
-  shell = appShell({
-    registry,
-    bus: eventBus,
-    onNavigate: (path) => router.navigate(path),
-    onSignOut: () => void leaveApp(),
-    onEndSupport: endDeveloperSupport,
-    outlet,
-  })
-  root.replaceChildren(shell.el)
-  router.refresh()
+onLocaleChange((next) => {
+  if (shell) {
+    shell = appShell({
+      registry,
+      bus: eventBus,
+      onNavigate: (path) => router.navigate(path),
+      onSignOut: () => void leaveApp(),
+      onEndSupport: endDeveloperSupport,
+      outlet,
+    })
+    root.replaceChildren(shell.el)
+    router.refresh()
+  }
+  // The catalogue-driven surfaces are back in English after the rebuild above;
+  // the translator engine sweeps everything the catalogue does not cover into
+  // Bengali (and stands down when switching back to English).
+  onLocaleForAutoTranslate(next)
 })
 
 async function leaveApp(): Promise<void> {
@@ -610,6 +619,11 @@ window.addEventListener('beforeunload', () => {
   registry.disposeAll()
   eventBus.clear()
 })
+
+// The translator engine watches the DOM and renders every surface the `t()`
+// catalogue does not cover into Bengali when the shop's language is বাংলা.
+// Installed before boot so it catches the very first screen the app paints.
+installAutoTranslate()
 
 void boot()
 
