@@ -2012,6 +2012,99 @@ export function summariseBranchBalances(rows: readonly BranchBalanceInput[]): {
   return { stockValueRaw, variantsInStock, lowStock, outOfStock }
 }
 
+export interface OwingInput {
+  total: number
+  paidTotal: number
+  /** The customer or supplier the debt belongs to; `null` for a walk-in. */
+  partyId: string | null
+}
+
+/**
+ * What is still owed, and by how many distinct parties, over a set of
+ * invoices. Pure and exported so the branch dashboard's receivable and payable
+ * are a tested fact rather than something that only runs against a live
+ * database. A line owes money only when what it was billed exceeds what has
+ * been paid; a party with several open bills is still one party.
+ */
+export function summariseOwing(rows: readonly OwingInput[]): {
+  amountRaw: number
+  parties: number
+} {
+  let amountRaw = 0
+  const parties = new Set<string>()
+  for (const row of rows) {
+    const outstanding = row.total - row.paidTotal
+    if (outstanding <= 0) continue
+    amountRaw += outstanding
+    if (row.partyId) parties.add(row.partyId)
+  }
+  return { amountRaw, parties: parties.size }
+}
+
+/** The live stock locations that make up a branch. */
+async function branchWarehouseIds(client: SupabaseClient, branchId: string): Promise<string[]> {
+  const rows = unwrap(
+    await client
+      .from('warehouses')
+      .select('id')
+      .eq('branch_id', branchId)
+      .is('deleted_at', null)
+      .returns<{ id: string }[]>()
+  )
+  return rows.map((row) => row.id)
+}
+
+/**
+ * What this branch is owed and what it owes, from the branch's own invoices.
+ *
+ * The organization-wide dashboard reads `customers.balance` / `suppliers.balance`,
+ * which have no branch dimension — a running khata total that a multi-branch shop
+ * cannot attribute to the branch on screen. So the branch figures are derived
+ * from the transactions that carry `branch_id`: an unpaid customer invoice
+ * (`PARTIALLY_PAID`, the status the khata itself treats as an open bill) and an
+ * unpaid supplier purchase (ordered, received or partly received).
+ */
+async function branchOwing(
+  client: SupabaseClient,
+  branchId: string
+): Promise<{
+  receivable: { amount: Minor; parties: number }
+  payable: { amount: Minor; parties: number }
+}> {
+  const [salesRes, purchasesRes] = await Promise.all([
+    client
+      .from('sales')
+      .select('total,paid_total,customer_id')
+      .eq('branch_id', branchId)
+      .eq('status', 'PARTIALLY_PAID')
+      .returns<{ total: string; paid_total: string; customer_id: string | null }[]>(),
+    client
+      .from('purchases')
+      .select('total,paid_total,supplier_id')
+      .eq('branch_id', branchId)
+      .in('status', ['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED'])
+      .returns<{ total: string; paid_total: string; supplier_id: string | null }[]>(),
+  ])
+  const receivable = summariseOwing(
+    unwrap(salesRes).map((row) => ({
+      total: Number(row.total),
+      paidTotal: Number(row.paid_total),
+      partyId: row.customer_id,
+    }))
+  )
+  const payable = summariseOwing(
+    unwrap(purchasesRes).map((row) => ({
+      total: Number(row.total),
+      paidTotal: Number(row.paid_total),
+      partyId: row.supplier_id,
+    }))
+  )
+  return {
+    receivable: { amount: toMinor(receivable.amountRaw), parties: receivable.parties },
+    payable: { amount: toMinor(payable.amountRaw), parties: payable.parties },
+  }
+}
+
 async function branchStockSummary(
   client: SupabaseClient,
   warehouseIds: readonly string[]
@@ -3215,7 +3308,7 @@ function createAnalytics(client: SupabaseClient): AnalyticsRepository {
       const daySlice = toSlice((raw.trend_days ?? {}) as RawSlice, true)
       const profitSlice = toSlice((raw.trend_profit ?? {}) as RawSlice, true)
 
-      return {
+      const base: DashboardSummary = {
         date: str(raw.date),
         timezone: str(raw.timezone, 'UTC'),
         currency: str(raw.currency, 'BDT'),
@@ -3244,6 +3337,66 @@ function createAnalytics(client: SupabaseClient): AnalyticsRepository {
         rankProducts: toSlice((raw.rank_products ?? {}) as RawSlice, true),
         rankCategories: toSlice((raw.rank_categories ?? {}) as RawSlice, true),
         generatedAt: str(raw.generated_at),
+      }
+
+      // ── Branch scoping ──────────────────────────────────────────────────
+      // `dashboard_summary` reports stock, reordering, receivable and payable
+      // across the whole organization; on a multi-branch shop that is the wrong
+      // answer for the branch on screen. Recompute the branch-attributable
+      // figures from the same tables the Stock and khata screens use, then fold
+      // them over the widgets. Takings, profit and expenses are already
+      // branch-scoped inside the RPC, so they are left untouched.
+      const [warehouseIds, owing] = await Promise.all([
+        branchWarehouseIds(client, branchId),
+        branchOwing(client, branchId),
+      ])
+      const stock: StockSummary =
+        warehouseIds.length > 0
+          ? await branchStockSummary(client, warehouseIds)
+          : {
+              stockValue: toMinor(0),
+              variantsInStock: 0,
+              lowStock: 0,
+              outOfStock: 0,
+              warehouses: 0,
+              movementsToday: 0,
+            }
+
+      return {
+        ...base,
+        stockValue: stock.stockValue,
+        lowStock: stock.lowStock,
+        outOfStock: stock.outOfStock,
+        answers: base.answers.map((answer) => {
+          if (answer.id === 'receivable') {
+            return {
+              ...answer,
+              amount: owing.receivable.amount,
+              value: String(owing.receivable.amount),
+              note: `${owing.receivable.parties} customer(s) owing on this branch's bills`,
+            }
+          }
+          if (answer.id === 'payable') {
+            return {
+              ...answer,
+              amount: owing.payable.amount,
+              value: String(owing.payable.amount),
+              note: `${owing.payable.parties} supplier(s) owed on this branch's purchases`,
+            }
+          }
+          if (answer.id === 'reorder') {
+            return {
+              ...answer,
+              count: stock.lowStock,
+              value: String(stock.lowStock),
+              note:
+                stock.lowStock === 0
+                  ? 'nothing is below its reorder point at this branch'
+                  : `${stock.lowStock} item(s) at or below their reorder point`,
+            }
+          }
+          return answer
+        }),
       }
     },
 
