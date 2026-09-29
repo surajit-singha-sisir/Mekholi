@@ -99,6 +99,10 @@ export const en = {
   'branch.switching': 'Switching branch',
   'branch.switchingTo': 'Switching to {name}',
   'branch.loadingData': 'Loading this branch’s data…',
+  'branch.confirmTitle': 'Switch branch?',
+  'branch.confirmBody':
+    'Everything — sales, stock, purchases, reports — will reload for {name}. Any unsaved work on this screen will be lost.',
+  'branch.confirmAction': 'Switch branch',
 
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'Save',
@@ -243,6 +247,10 @@ export const bn: Partial<Record<StringKey, string>> = {
   'branch.switching': 'শাখা বদলানো হচ্ছে',
   'branch.switchingTo': '{name} শাখায় যাওয়া হচ্ছে',
   'branch.loadingData': 'এই শাখার তথ্য লোড হচ্ছে…',
+  'branch.confirmTitle': 'শাখা বদলাবেন?',
+  'branch.confirmBody':
+    'সব কিছু — বিক্রি, স্টক, ক্রয়, রিপোর্ট — {name} শাখার জন্য আবার লোড হবে। এই পাতার অসংরক্ষিত কাজ হারিয়ে যাবে।',
+  'branch.confirmAction': 'শাখা বদলান',
 
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'সংরক্ষণ',

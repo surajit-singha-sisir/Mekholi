@@ -208,8 +208,11 @@ export interface SaleRepository {
 
   /** Newest first, this branch only. */
   list(query: PageRequest & { branchId: string; status?: string[] }): Promise<Page<SaleRow>>
-  /** The sales list for a shop, across branches, for the Sales screen. */
-  listAll(query: PageRequest & { status?: string; search?: string; from?: string; to?: string }): Promise<Page<SalesListRow>>
+  /**
+   * The sales list for the Sales screen. Scoped to one branch when `branchId`
+   * is given (the till's branch), or across every branch when it is omitted.
+   */
+  listAll(query: PageRequest & { status?: string; search?: string; from?: string; to?: string; branchId?: string | null }): Promise<Page<SalesListRow>>
   detail(id: string): Promise<SaleDetail | null>
   get(id: string): Promise<SaleRow | null>
   held(branchId: string): Promise<SaleRow[]>
@@ -414,6 +417,13 @@ export interface StockOperationResult {
 export interface StockQuery extends PageRequest {
   search?: string
   warehouseId?: string
+  /**
+   * Restrict to a set of stock locations — a branch's warehouses. When a
+   * single `warehouseId` is also given it wins (the explicit dropdown choice);
+   * otherwise the list is confined to these, which is how a branch shows only
+   * its own stock rather than the whole organization's.
+   */
+  warehouseIds?: string[]
   /** The tabs above the list. */
   filter?: 'all' | 'low' | 'out'
 }
@@ -429,12 +439,24 @@ export interface StockRepository {
   /** One page of stock, newest movement first within each product. */
   list(query: StockQuery): Promise<Page<StockRow>>
   /** The ledger for one variant — the answer to "why 37 units?". */
-  history(variantId: string, query: PageRequest & { warehouseId?: string }): Promise<Page<StockMovementRow>>
+  history(
+    variantId: string,
+    query: PageRequest & { warehouseId?: string; warehouseIds?: string[] }
+  ): Promise<Page<StockMovementRow>>
   /** Recent movements across the shop, for the overview's activity list. */
-  recent(query: PageRequest & { warehouseId?: string }): Promise<Page<StockMovementRow>>
-  summary(): Promise<StockSummary>
+  recent(
+    query: PageRequest & { warehouseId?: string; warehouseIds?: string[] }
+  ): Promise<Page<StockMovementRow>>
+  /**
+   * The six overview figures. With no scope they cover the whole organization
+   * (the ambient badge's original behaviour); given a branch's `warehouseIds`
+   * they are computed for that branch alone, so the stock screen's cards match
+   * the branch in the switcher.
+   */
+  summary(scope?: { warehouseIds?: string[] }): Promise<StockSummary>
 
-  listWarehouses(): Promise<WarehouseOption[]>
+  /** Every stock location, or only a branch's when `branchId` is given. */
+  listWarehouses(branchId?: string): Promise<WarehouseOption[]>
 
   /**
    * Writes. Each maps to exactly one Postgres function, because the function
@@ -567,7 +589,7 @@ export interface PurchaseDraftLine {
 export interface PurchaseRepository {
   /** Buy-side search includes products with zero stock in the destination warehouse. */
   searchProducts(warehouseId: string, search: string, limit?: number): Promise<SellableProduct[]>
-  list(query: PageRequest & { status?: string; supplierId?: string; search?: string }): Promise<Page<PurchaseRow>>
+  list(query: PageRequest & { status?: string; supplierId?: string; search?: string; branchId?: string | null }): Promise<Page<PurchaseRow>>
   get(id: string): Promise<PurchaseDetail | null>
   /** Creates when `id` is absent. Returns the purchase id. */
   save(input: {

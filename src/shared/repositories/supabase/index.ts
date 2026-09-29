@@ -84,6 +84,7 @@ import type {
   StockOperationResult,
   StockRepository,
   StockRow,
+  StockSummary,
   SupplierRepository,
   SupplierRow,
   WarehouseOption,
@@ -1047,6 +1048,10 @@ function createSales(client: SupabaseClient): SaleRepository {
 
       builder = afterCursor(builder, query.cursor)
 
+      // The Sales screen shows the till's branch by default; `sales_detail`
+      // carries `branch_id`, so this is a filter rather than a schema change.
+      // Omitting `branchId` keeps the cross-branch view for anywhere that wants it.
+      if (query.branchId) builder = builder.eq('branch_id', query.branchId)
       if (query.status) builder = builder.eq('status', query.status)
       const search = query.search?.trim()
       if (search) {
@@ -1964,6 +1969,99 @@ function toStockRow(row: StockBalanceRow): StockRow {
   }
 }
 
+/**
+ * The stock overview for one branch, computed from its warehouses' balances.
+ *
+ * The organization-wide figures come from the `stock_summary` RPC; a branch is
+ * a subset of warehouses the RPC does not take, so its numbers are derived here
+ * from the same `stock_balances` rows and the same low/out/value rules as
+ * `toStockRow`. That keeps the cards, the list and the badge in agreement
+ * without a schema change (the RPC would need a branch parameter it does not
+ * have). One extra head-count answers "movements today" for the branch.
+ */
+/** One balance row reduced to the numbers the summary counts. */
+export interface BranchBalanceInput {
+  quantity: number
+  avgUnitCost: number
+  reorderPoint: number
+  trackStock: boolean
+}
+
+/**
+ * The counting rules, pure and exported so the arithmetic is a tested fact
+ * rather than something that only runs against a live database. These mirror
+ * `toStockRow` exactly — low is "tracked, above zero, at or below reorder", out
+ * is "tracked and at or below zero" — so the cards agree with the rows.
+ */
+export function summariseBranchBalances(rows: readonly BranchBalanceInput[]): {
+  stockValueRaw: number
+  variantsInStock: number
+  lowStock: number
+  outOfStock: number
+} {
+  let stockValueRaw = 0
+  let variantsInStock = 0
+  let lowStock = 0
+  let outOfStock = 0
+  for (const row of rows) {
+    stockValueRaw += row.quantity * row.avgUnitCost
+    if (row.quantity > 0) variantsInStock += 1
+    if (row.trackStock && row.quantity > 0 && row.quantity <= row.reorderPoint) lowStock += 1
+    if (row.trackStock && row.quantity <= 0) outOfStock += 1
+  }
+  return { stockValueRaw, variantsInStock, lowStock, outOfStock }
+}
+
+async function branchStockSummary(
+  client: SupabaseClient,
+  warehouseIds: readonly string[]
+): Promise<StockSummary> {
+  type Row = {
+    quantity: string
+    avg_unit_cost: string
+    products:
+      | { reorder_point: string; track_stock: boolean }
+      | { reorder_point: string; track_stock: boolean }[]
+      | null
+  }
+  const rows = unwrap(
+    await client
+      .from('stock_balances')
+      .select('quantity,avg_unit_cost,products(reorder_point,track_stock)')
+      .in('warehouse_id', warehouseIds as string[])
+      .returns<Row[]>()
+  )
+
+  const totals = summariseBranchBalances(
+    rows.map((row) => {
+      const product = embedded(row.products)
+      return {
+        quantity: Number(row.quantity),
+        avgUnitCost: Number(row.avg_unit_cost),
+        reorderPoint: Number(product?.reorder_point ?? 0),
+        trackStock: product?.track_stock ?? true,
+      }
+    })
+  )
+
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const { count } = await client
+    .from('stock_history')
+    .select('id', { count: 'exact', head: true })
+    .in('warehouse_id', warehouseIds as string[])
+    .gte('created_at', startOfToday.toISOString())
+
+  return {
+    stockValue: toMinor(totals.stockValueRaw),
+    variantsInStock: totals.variantsInStock,
+    lowStock: totals.lowStock,
+    outOfStock: totals.outOfStock,
+    warehouses: warehouseIds.length,
+    movementsToday: count ?? 0,
+  }
+}
+
 function toMovementRow(row: MovementRowRaw): StockMovementRow {
   const quantity = toMilli(row.quantity)
   const direction: 1 | -1 = row.direction < 0 ? -1 : 1
@@ -2039,7 +2137,12 @@ function createStock(
 
       builder = stockAfterCursor(builder, query.cursor)
 
+      // An explicit dropdown choice is exact; otherwise a branch confines the
+      // list to its own stock locations. `.in([])` would match nothing, so an
+      // empty set is treated as "no branch filter" rather than "hide all".
       if (query.warehouseId) builder = builder.eq('warehouse_id', query.warehouseId)
+      else if (query.warehouseIds && query.warehouseIds.length > 0)
+        builder = builder.in('warehouse_id', query.warehouseIds)
 
       const rows = unwrap(await builder.returns<StockBalanceRow[]>())
       let items = rows.map(toStockRow)
@@ -2076,6 +2179,8 @@ function createStock(
 
       builder = afterCursor(builder, query.cursor)
       if (query.warehouseId) builder = builder.eq('warehouse_id', query.warehouseId)
+      else if (query.warehouseIds && query.warehouseIds.length > 0)
+        builder = builder.in('warehouse_id', query.warehouseIds)
 
       const rows = unwrap(await builder.returns<MovementRowRaw[]>())
       return { items: rows.map(toMovementRow), nextCursor: paginate(rows, limit).nextCursor }
@@ -2092,12 +2197,24 @@ function createStock(
 
       builder = afterCursor(builder, query.cursor)
       if (query.warehouseId) builder = builder.eq('warehouse_id', query.warehouseId)
+      else if (query.warehouseIds && query.warehouseIds.length > 0)
+        builder = builder.in('warehouse_id', query.warehouseIds)
 
       const rows = unwrap(await builder.returns<MovementRowRaw[]>())
       return { items: rows.map(toMovementRow), nextCursor: paginate(rows, limit).nextCursor }
     },
 
-    async summary() {
+    async summary(scope) {
+      // A branch is a set of stock locations. When the caller names them the
+      // six figures are computed for that branch alone, from the same tables
+      // and the same rounding the stock list uses — so the cards, the rows and
+      // the badge all agree. With no scope the organization-wide RPC answers,
+      // which is the ambient badge's original behaviour.
+      const warehouseIds = scope?.warehouseIds
+      if (warehouseIds && warehouseIds.length > 0) {
+        return branchStockSummary(client, warehouseIds)
+      }
+
       const raw = unwrap(
         await client.rpc('stock_summary', { p_organization_id: requireOrg(organizationId) })
       ) as {
@@ -2118,12 +2235,14 @@ function createStock(
       }
     },
 
-    async listWarehouses() {
+    async listWarehouses(branchId) {
+      let builder = client
+        .from('warehouses')
+        .select('id,name,is_retail_floor')
+        .is('deleted_at', null)
+      if (branchId) builder = builder.eq('branch_id', branchId)
       const rows = unwrap(
-        await client
-          .from('warehouses')
-          .select('id,name,is_retail_floor')
-          .is('deleted_at', null)
+        await builder
           .order('is_retail_floor', { ascending: false })
           .order('name')
           .returns<{ id: string; name: string; is_retail_floor: boolean }[]>()
@@ -2435,6 +2554,9 @@ function createPurchases(client: SupabaseClient): PurchaseRepository {
         .limit(limit)
 
       builder = afterCursor(builder, query.cursor)
+      // Purchases are received into a branch's warehouse and the table carries
+      // `branch_id`, so the list is scoped to the till's branch when asked.
+      if (query.branchId) builder = builder.eq('branch_id', query.branchId)
       if (query.status) builder = builder.eq('status', query.status)
       if (query.supplierId) builder = builder.eq('supplier_id', query.supplierId)
 

@@ -14,6 +14,7 @@ import { iconButton } from '../../components/ui/button'
 import { sidebar, markActive } from './sidebar'
 import { openQueue } from './sync-indicator'
 import { showBranchSplash } from './branch-splash'
+import { confirm } from '../../components/feedback/modal'
 import { CommandPalette } from './command-palette'
 import type { PluginRegistry } from '../../shared/registry/plugin-registry'
 import { sessionStore, activeOrganization, can } from '../../app/state/session'
@@ -412,10 +413,28 @@ function branchSwitcher(
     }
     if (status === 'loading') select.disabled = true
     select.addEventListener('change', () => {
-      select.disabled = true
       const branchId = select.value
+      const currentId = floor?.branchId ?? ''
+      if (!branchId || branchId === currentId) return
       const branchName = branches.find((branch) => branch.id === branchId)?.name ?? ''
-      void switchBranch(branchId, branchName, onNavigate)
+      select.disabled = true
+      void (async () => {
+        // Ask first. Switching branch reloads the whole shop for a different
+        // till, so it is a deliberate action, not a stray tap on a dropdown.
+        const confirmed = await confirm(t('branch.confirmTitle'), {
+          message: t('branch.confirmBody', { name: branchName }),
+          confirmLabel: t('branch.confirmAction'),
+          cancelLabel: t('common.cancel'),
+          iconName: 'storefront',
+        })
+        if (!confirmed) {
+          // Put the dropdown back to the branch actually in use.
+          select.value = currentId
+          select.disabled = false
+          return
+        }
+        await switchBranch(branchId, branchName, onNavigate)
+      })()
     })
 
     host.replaceChildren(

@@ -175,6 +175,8 @@ export function salesView(options: SalesViewOptions): HTMLElement {
     try {
       const page = await repos.sales.listAll({
         limit: 30,
+        // Only this branch's sales — the Sales screen follows the switcher.
+        branchId: salesFloor()?.branchId ?? null,
         ...(search.trim() ? { search } : {}),
         ...(status ? { status } : {}),
       })
@@ -202,6 +204,7 @@ export function salesView(options: SalesViewOptions): HTMLElement {
       const page = await repos.sales.listAll({
         limit: 30,
         cursor,
+        branchId: salesFloor()?.branchId ?? null,
         ...(search.trim() ? { search } : {}),
         ...(status ? { status } : {}),
       })

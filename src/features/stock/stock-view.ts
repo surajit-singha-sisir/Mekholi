@@ -20,6 +20,7 @@ import { exportToolbar, sortReportRows } from '../../components/ui/table-tools'
 import { toastError, toastSuccess } from '../../components/feedback/toast'
 import { getRepositories } from '../../app/data'
 import { activeOrganization } from '../../app/state/session'
+import { salesFloor } from '../../app/state/sales-floor'
 import { refreshStockAlerts } from '../../app/state/stock-alerts'
 import { formatMoney, minor as minorOf } from '../../shared/domain/money'
 import { translateError } from '../../app/platform/errors'
@@ -61,7 +62,15 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
   let warehouseId = ''
   let cursor: string | null = null
   let rows: StockRow[] = []
+  // Stock locations that belong to the branch in the switcher — the dropdown
+  // choices, and the default scope for the list and the summary. Everything on
+  // this screen answers "what is in *this* branch", not the whole shop.
   let warehouses: WarehouseOption[] = []
+  let branchWarehouseIds: string[] = []
+  // Every location in the shop, for the move dialogs only: a transfer or a
+  // stock-in may legitimately target another branch's warehouse, so those keep
+  // the full list even though the view above is branch-scoped.
+  let allWarehouses: WarehouseOption[] = []
   let loading = false
   let sortKey: string | undefined
   let sortDir: 'asc' | 'desc' = 'desc'
@@ -130,7 +139,7 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
     openStockDialog({
       mode,
       currency,
-      warehouses,
+      warehouses: allWarehouses.length ? allWarehouses : warehouses,
       onDone: (message) => {
         toastSuccess(message)
         void refreshStockAlerts()
@@ -164,9 +173,18 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
   }
 
   // ── Summary ─────────────────────────────────────────────────────────────
+  /** Scope shared by the list and the summary: a specific pick, else the branch. */
+  function scopeArgs(): { warehouseId?: string; warehouseIds?: string[] } {
+    if (warehouseId) return { warehouseId }
+    if (branchWarehouseIds.length > 0) return { warehouseIds: branchWarehouseIds }
+    return {}
+  }
+
   async function loadSummary(): Promise<void> {
     try {
-      const summary = await repos.stock.summary()
+      const summary = await repos.stock.summary(
+        branchWarehouseIds.length > 0 ? { warehouseIds: branchWarehouseIds } : undefined
+      )
       mount(
         summarySlot,
         statCard('Stock value', formatMoney(summary.stockValue, { currency }), 'payments'),
@@ -218,7 +236,7 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
         limit: 50,
         filter,
         ...(search.trim() ? { search } : {}),
-        ...(warehouseId ? { warehouseId } : {}),
+        ...scopeArgs(),
       })
       rows = page.items
       cursor = page.nextCursor
@@ -240,7 +258,7 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
         cursor,
         filter,
         ...(search.trim() ? { search } : {}),
-        ...(warehouseId ? { warehouseId } : {}),
+        ...scopeArgs(),
       })
       rows = [...rows, ...page.items]
       cursor = page.nextCursor
@@ -373,17 +391,25 @@ export function stockView(options: StockViewOptions = {}): HTMLElement {
 
   void (async () => {
     try {
-      warehouses = await repos.stock.listWarehouses()
+      const branchId = salesFloor()?.branchId ?? null
+      // The dropdown and the default scope are the branch's own locations…
+      warehouses = await repos.stock.listWarehouses(branchId ?? undefined)
+      branchWarehouseIds = warehouses.map((w) => w.id)
+      // …while the move dialogs keep every location so a transfer can still
+      // reach another branch. One branch shop: the two lists are identical.
+      allWarehouses = branchId ? await repos.stock.listWarehouses() : warehouses
       mount(
         warehouseSelect,
-        h('option', { value: '', text: 'All stock locations' }),
+        h('option', { value: '', text: 'All in this branch' }),
         ...warehouses.map((w) => h('option', { value: w.id, text: w.name }))
       )
-      // A single-warehouse shop does not need the choice — hide it and keep
+      // A single-warehouse branch does not need the choice — hide it and keep
       // the toolbar to one line.
       if (warehouses.length <= 1) warehouseSelect.classList.add('hidden')
     } catch {
       warehouses = []
+      branchWarehouseIds = []
+      allWarehouses = []
     }
     await loadSummary()
     await reload()

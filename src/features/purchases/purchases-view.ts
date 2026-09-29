@@ -134,6 +134,8 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
     try {
       const page = await repos.purchases.list({
         limit: 30,
+        // This branch's purchases only — received stock lands in its warehouse.
+        branchId: salesFloor()?.branchId ?? null,
         ...(status ? { status } : {}),
         ...(search.trim() ? { search } : {}),
       })
@@ -152,7 +154,7 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
     if (!cursor || loading) return
     loading = true
     try {
-      const page = await repos.purchases.list({ limit: 30, cursor, ...(status ? { status } : {}), ...(search.trim() ? { search } : {}) })
+      const page = await repos.purchases.list({ limit: 30, cursor, branchId: salesFloor()?.branchId ?? null, ...(status ? { status } : {}), ...(search.trim() ? { search } : {}) })
       rows = [...rows, ...page.items]
       cursor = page.nextCursor
       render()

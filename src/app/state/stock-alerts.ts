@@ -19,6 +19,7 @@
 
 import { Store } from './store'
 import { sessionStore } from './session'
+import { salesFloor } from './sales-floor'
 import { getSupabase } from '../platform/supabase'
 import { getRepositories } from '../data'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -52,7 +53,13 @@ export function refreshStockAlerts(): Promise<void> {
 
   inflight = (async () => {
     try {
-      const summary = await getRepositories().stock.summary()
+      // Branch-scoped: the badge warns about the till's own selling floor, not
+      // stock that is low in a different branch. Falls back to the shop-wide
+      // count only before a floor has resolved.
+      const warehouseId = salesFloor()?.warehouseId ?? null
+      const summary = await getRepositories().stock.summary(
+        warehouseId ? { warehouseIds: [warehouseId] } : undefined
+      )
       stockAlertStore.set({
         lowStock: summary.lowStock,
         outOfStock: summary.outOfStock,
