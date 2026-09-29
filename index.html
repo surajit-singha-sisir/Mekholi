@@ -48,6 +48,15 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap"
     />
 
+    <!--
+      Kalpurush is the Bengali typeface for this product (docs/16). Inter has
+      no Bengali glyphs, so Bengali text falls through to Kalpurush while Latin
+      stays in Inter. Self-hosted webfont CDN; a slow CDN degrades to Hind
+      Siliguri rather than a blank screen.
+    -->
+    <link rel="preconnect" href="https://fonts.maateen.me" crossorigin />
+    <link rel="stylesheet" href="https://fonts.maateen.me/kalpurush/font.css" />
+
     <link rel="icon" type="image/png" sizes="64x64" href="./favicon.png" />
   </head>
   <body class="h-full bg-surface text-content antialiased">

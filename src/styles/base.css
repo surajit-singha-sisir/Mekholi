@@ -20,6 +20,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* When the shop is in Bengali, Kalpurush leads the stack so every Bengali
+     glyph is drawn by it; Latin (numbers, codes, brand) still uses Inter,
+     which sits ahead of the Bengali fonts here too. */
+  :root[lang='bn'] body {
+    font-family: 'Inter', 'Kalpurush', 'Hind Siliguri', system-ui, sans-serif;
+  }
+
   /* Tabular figures everywhere: a POS full of proportionally-spaced numbers
      is unreadable at a glance. */
   table,

@@ -222,7 +222,6 @@ export const PHRASES: Readonly<Record<string, string>> = {
   units: 'একক',
   variant: 'ভ্যারিয়েন্ট',
   variants: 'ভ্যারিয়েন্ট',
-  sku: 'এসকেইউ',
   'cost price': 'ক্রয়মূল্য',
   'selling price': 'বিক্রয়মূল্য',
   'sale price': 'বিক্রয়মূল্য',
@@ -236,7 +235,7 @@ export const PHRASES: Readonly<Record<string, string>> = {
   transfer: 'ট্রান্সফার',
   'opening stock': 'প্রারম্ভিক স্টক',
   reorder: 'পুনরায় অর্ডার',
-  'reorder level': 'পুনঃঅর্ডার সীমা',
+  'reorder level': 'পুনরায় অর্ডারের সীমা',
   warehouse: 'গুদাম',
   branch: 'শাখা',
   branches: 'শাখা',
@@ -339,22 +338,29 @@ export const PHRASES: Readonly<Record<string, string>> = {
  * like "the পণ্য". The engine collapses the resulting double spaces.
  */
 export const WORDS: Readonly<Record<string, string>> = {
-  // Articles, connectors, prepositions
+  // Articles, connectors, prepositions.
+  //
+  // English prepositions sit *before* their noun; Bengali postpositions sit
+  // after. Stitching a translated preposition into English word order reads as
+  // broken Bengali ("রিপোর্ট এর বিক্রয়"), so the position-sensitive ones are
+  // dropped to an empty string — a clean noun phrase beats a wrong one. The
+  // phrase dictionary above is where these are handled properly when they
+  // matter (e.g. a full label).
   the: '',
   a: '',
   an: '',
-  and: 'এবং',
-  or: 'অথবা',
-  of: 'এর',
-  for: 'জন্য',
-  to: 'তে',
-  in: 'তে',
-  on: 'এ',
-  at: 'এ',
-  by: 'দ্বারা',
+  and: 'ও',
+  or: 'বা',
+  of: '',
+  for: '',
+  to: '',
+  in: '',
+  on: '',
+  at: '',
+  by: '',
+  from: '',
   with: 'সহ',
   without: 'ছাড়া',
-  from: 'থেকে',
   per: 'প্রতি',
   this: 'এই',
   that: 'সেই',

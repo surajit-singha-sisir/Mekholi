@@ -31,14 +31,27 @@ describe('the translator engine — string translation', () => {
     expect(out).toContain('পণ্য')
   })
 
-  it('converts standalone numbers to Bengali digits', () => {
-    expect(translateText('5 items')).toBe('৫ পণ্য')
-    expect(translateText('1,250')).toBe('১,২৫০')
+  it('never rewrites numbers — they are functional values', () => {
+    expect(translateText('5 items')).toBe('5 পণ্য')
+    expect(translateText('1,250')).toBe('1,250')
   })
 
-  it('leaves code-shaped tokens (SKU, version) untouched', () => {
+  it('leaves functional identifiers completely untouched', () => {
     expect(translateText('ABC123')).toBe('ABC123')
     expect(translateText('v6.5.2')).toBe('v6.5.2')
+    expect(translateText('SKU')).toBe('SKU')
+    expect(translateText('INV-2024')).toBe('INV-2024')
+    // Internal keys / paths are not UI copy.
+    expect(translateText('dashboard.view')).toBe('dashboard.view')
+    expect(translateText('created_at')).toBe('created_at')
+  })
+
+  it('skips the identifier but translates the words around it', () => {
+    const out = translateText('Invoice INV-0007 paid')
+    expect(out).toContain('INV-0007')
+    expect(out).toContain('চালান')
+    expect(out).toContain('পরিশোধিত')
+    expect(out).not.toMatch(/\bInvoice\b/)
   })
 
   it('transliterates an unknown word so no English remains', () => {

@@ -85,7 +85,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Hind Siliguri', 'system-ui', 'sans-serif'],
+        // Inter carries Latin; Kalpurush carries Bengali (Inter has no Bengali
+        // glyphs, so Bengali text falls straight through to Kalpurush). Hind
+        // Siliguri stays as a fallback for devices that cannot fetch Kalpurush.
+        sans: ['Inter', 'Kalpurush', 'Hind Siliguri', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {

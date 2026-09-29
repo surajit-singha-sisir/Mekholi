@@ -22,7 +22,7 @@
 
 import { locale } from './index'
 import { PHRASES, WORDS, KEEP } from './dictionary'
-import { transliterateWord, bengaliDigits } from './transliterate'
+import { transliterateWord } from './transliterate'
 
 // ── String translation ──────────────────────────────────────────────────────
 
@@ -33,7 +33,31 @@ function neighbourIsCodeLike(ch: string): boolean {
   return ch !== '' && /[0-9_@/]/.test(ch)
 }
 
+/**
+ * A functional identifier that must never be translated — an invoice number, a
+ * SKU, an id, a version. These carry meaning as exact strings; rewriting their
+ * letters or digits would break the shop's records.
+ *
+ * The test is intentionally conservative and applies to a single token (no
+ * spaces): a mix of letters and digits (`INV-2024`, `SKU123`, `A4`), or an
+ * all-caps code (`SKU`, `INV`, `ID`). Ordinary words are never all-caps in the
+ * UI, so real labels are unaffected.
+ */
+function isFunctionalToken(token: string): boolean {
+  if (token.length < 2 || /\s/.test(token)) return false
+  const hasLetter = /[A-Za-z]/.test(token)
+  const hasDigit = /[0-9]/.test(token)
+  // Mixed letters and digits: INV-2024, SKU123, A4.
+  if (hasLetter && hasDigit) return true
+  // All-caps code: SKU, INV, ID, BDT.
+  if (/^[A-Z][A-Z0-9._/#-]*$/.test(token)) return true
+  // Dotted or underscored internal key / path: dashboard.view, created_at.
+  if (/^[A-Za-z]+(?:[._][A-Za-z0-9]+)+$/.test(token)) return true
+  return false
+}
+
 function translateWordToken(word: string): string {
+  if (isFunctionalToken(word)) return word
   const lower = word.toLowerCase()
   if (KEEP.has(lower)) return word
   if (Object.prototype.hasOwnProperty.call(WORDS, lower)) return WORDS[lower] ?? ''
@@ -74,38 +98,34 @@ export function translateText(input: string): string {
   let out: string
 
   if (!/[A-Za-z]/.test(input)) {
-    // No English words. Still render standalone numbers in Bengali digits.
-    out = convertStandaloneDigits(input)
+    // No English letters — already Bengali, a bare number, or pure symbols.
+    // Left exactly as-is: digits (invoice numbers, quantities, prices) are
+    // never rewritten, because they are functional values.
+    out = input
+  } else if (isFunctionalToken(input.trim())) {
+    // A lone identifier (SKU, INV-2024, ID) — leave it completely alone.
+    out = input
   } else {
     const phrase = matchPhrase(input)
     if (phrase !== null) {
       out = phrase
     } else {
-      // Word by word, protecting code-shaped tokens and converting numbers.
+      // Word by word, protecting code-shaped tokens. Digits are never touched.
       out = input.replace(/[A-Za-z]+/g, (word, offset: number) => {
         const before = input[offset - 1] ?? ''
         const after = input[offset + word.length] ?? ''
         if (neighbourIsCodeLike(before) || neighbourIsCodeLike(after)) return word
         return translateWordToken(word)
       })
-      out = convertStandaloneDigits(out)
-      // "the পণ্য" → "পণ্য": empty-string function words leave gaps.
+      // "the পণ্য" → "পণ্য": empty-string function words leave gaps. Collapse
+      // runs of spaces but keep any single leading/trailing space, which is
+      // significant between inline elements ("Total: " + a value).
       out = out.replace(/ {2,}/g, ' ').replace(/ +([:।,.!?…])/g, '$1')
     }
   }
 
   memo.set(input, out)
   return out
-}
-
-/** Latin → Bengali digits for number tokens only (never inside a code). */
-function convertStandaloneDigits(input: string): string {
-  return input.replace(/\d+/g, (num, offset: number) => {
-    const before = input[offset - 1] ?? ''
-    const after = input[offset + num.length] ?? ''
-    if (/[A-Za-z_@/.]/.test(before) || /[A-Za-z_@/.]/.test(after)) return num
-    return bengaliDigits(num)
-  })
 }
 
 // ── DOM walking ──────────────────────────────────────────────────────────────
