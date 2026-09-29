@@ -95,6 +95,11 @@ export const en = {
   'shell.reload': 'Reload this page',
   'shell.switchShop': 'Switch shop',
 
+  // ── Branch switch ──────────────────────────────────────────────────────
+  'branch.switching': 'Switching branch',
+  'branch.switchingTo': 'Switching to {name}',
+  'branch.loadingData': 'Loading this branch’s data…',
+
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'Save',
   'common.cancel': 'Cancel',
@@ -233,6 +238,11 @@ export const bn: Partial<Record<StringKey, string>> = {
   'shell.menu': 'মেনু',
   'shell.reload': 'পাতাটি আবার লোড করুন',
   'shell.switchShop': 'দোকান বদলান',
+
+  // ── Branch switch ──────────────────────────────────────────────────────
+  'branch.switching': 'শাখা বদলানো হচ্ছে',
+  'branch.switchingTo': '{name} শাখায় যাওয়া হচ্ছে',
+  'branch.loadingData': 'এই শাখার তথ্য লোড হচ্ছে…',
 
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'সংরক্ষণ',

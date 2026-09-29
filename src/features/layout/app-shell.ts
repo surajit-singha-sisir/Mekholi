@@ -13,6 +13,7 @@ import { h, icon, mount } from '../../components/ui/h'
 import { iconButton } from '../../components/ui/button'
 import { sidebar, markActive } from './sidebar'
 import { openQueue } from './sync-indicator'
+import { showBranchSplash } from './branch-splash'
 import { CommandPalette } from './command-palette'
 import type { PluginRegistry } from '../../shared/registry/plugin-registry'
 import { sessionStore, activeOrganization, can } from '../../app/state/session'
@@ -282,7 +283,7 @@ export function appShell(options: AppShellOptions): AppShell {
           // Plugin controls that earned a place on the one always-visible
           // strip — a notification bell, a sync light (docs/05 §7).
           pluginHeaderHost(registry),
-          branchSwitcher(registry),
+          branchSwitcher(registry, onNavigate),
           posButton(onNavigate),
           profileMenu({ shopName, shopInitial, onNavigate, onSignOut })
         )
@@ -366,8 +367,17 @@ function currentPath(): string {
  * standing at" is a fact the cashier should be able to see without opening a
  * settings screen. Changing it re-resolves the whole sales floor: warehouse,
  * register and open session all follow the branch (docs/13 P1-4).
+ *
+ * A switch is covered by a full-screen splash (`branch-splash.ts`): the shop's
+ * previous figures are hidden the instant the branch changes, the new branch's
+ * floor is resolved behind the cover, and the app then lands on that branch's
+ * dashboard — so what appears first is already the chosen branch, never the one
+ * being left.
  */
-function branchSwitcher(registry: PluginRegistry): HTMLElement {
+function branchSwitcher(
+  registry: PluginRegistry,
+  onNavigate: (path: string) => void
+): HTMLElement {
   const host = h('div', { class: 'hidden' })
 
   const render = (): void => {
@@ -403,7 +413,9 @@ function branchSwitcher(registry: PluginRegistry): HTMLElement {
     if (status === 'loading') select.disabled = true
     select.addEventListener('change', () => {
       select.disabled = true
-      void setActiveBranch(select.value)
+      const branchId = select.value
+      const branchName = branches.find((branch) => branch.id === branchId)?.name ?? ''
+      void switchBranch(branchId, branchName, onNavigate)
     })
 
     host.replaceChildren(
@@ -417,6 +429,38 @@ function branchSwitcher(registry: PluginRegistry): HTMLElement {
   salesFloorStore.subscribe(render)
   render()
   return host
+}
+
+/**
+ * Carry out a branch switch behind the splash.
+ *
+ * The order is the whole point:
+ *   1. the splash goes up first, so the previous branch's numbers vanish the
+ *      instant the cashier commits to the change — no frame of the wrong till;
+ *   2. `setActiveBranch` resolves the *new* branch's floor and awaits it, so
+ *      the dashboard about to render reads the branch that was chosen;
+ *   3. navigating to `/` re-renders the dashboard against that floor — and it
+ *      re-runs even when the dashboard is already the current route;
+ *   4. the splash lifts only once all of the above has settled.
+ *
+ * A failed resolve still lifts the splash — the floor store surfaces the error
+ * on the dashboard rather than leaving the shop staring at a cover forever.
+ */
+async function switchBranch(
+  branchId: string,
+  branchName: string,
+  onNavigate: (path: string) => void
+): Promise<void> {
+  const splash = showBranchSplash(branchName)
+  try {
+    await setActiveBranch(branchId)
+    // Land on the selected branch's dashboard. `router.navigate('/')` re-renders
+    // even if `/` is already the current route, so the dashboard re-fetches
+    // against the branch that was just resolved.
+    onNavigate('/')
+  } finally {
+    await splash.dismiss()
+  }
 }
 
 /**
