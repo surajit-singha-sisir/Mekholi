@@ -588,7 +588,13 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
     const outstanding = detail.items.filter((item) => milliToNumber(item.outstanding) > 0)
     const entries = outstanding.map((item) => ({
       item,
-      qtyInput: input({ id: `receive-${item.id}`, value: String(milliToNumber(item.outstanding)), inputmode: 'decimal' }),
+      qtyInput: input({
+        id: `receive-${item.id}`,
+        value: String(milliToNumber(item.outstanding)),
+        inputmode: 'decimal',
+        // A hard ceiling: you cannot receive more than the order still owes.
+        max: String(milliToNumber(item.outstanding)),
+      }),
       costInput: input({ id: `receive-cost-${item.id}`, value: minorToNumber(item.unitCost).toFixed(2), inputmode: 'decimal' }),
     }))
 
@@ -639,7 +645,17 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
     )
 
     for (const entry of entries) {
+      const cap = milliToNumber(entry.item.outstanding)
       entry.qtyInput.addEventListener('input', updateSummary)
+      // Clamp on blur, not mid-keystroke (typing "12" passes through "1"): a
+      // receiving quantity can never exceed what the order still owes.
+      entry.qtyInput.addEventListener('change', () => {
+        const entered = Number(entry.qtyInput.value)
+        if (Number.isFinite(entered) && entered > cap) {
+          entry.qtyInput.value = String(cap)
+          updateSummary()
+        }
+      })
       entry.costInput.addEventListener('input', updateSummary)
     }
     updateSummary()

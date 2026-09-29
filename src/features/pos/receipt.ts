@@ -105,7 +105,10 @@ export function showReceipt(data: ReceiptData): { close: () => void } {
 
   const overlay = h('div', {
     id: 'mekholi-print-root',
-    class: 'fixed inset-0 z-50 overflow-y-auto bg-content/40 p-4',
+    // Above the modal layer (z-[90]) and the command palette (z-[95]): the
+    // receipt is opened *from* the sale-detail modal, so it must sit on top of
+    // it, not slide behind it. Matches the top overlay tier (toasts, splash).
+    class: 'fixed inset-0 z-[100] overflow-y-auto bg-content/40 p-4',
     style: { backdropFilter: 'blur(2px)' },
   })
 
