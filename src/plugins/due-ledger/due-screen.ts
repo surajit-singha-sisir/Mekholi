@@ -13,10 +13,11 @@
  */
 
 import { h, icon, mount } from '../../components/ui/h'
-import { card, emptyState, stat } from '../../components/ui/card'
-import { spinner } from '../../components/ui/button'
+import { badge, card, emptyState, stat } from '../../components/ui/card'
+import { button, spinner } from '../../components/ui/button'
 import { searchInput } from '../../components/ui/input'
 import { dataTable } from '../../components/ui/table'
+import { modal } from '../../components/feedback/modal'
 import { formatMoney, minor } from '../../shared/domain/money'
 import { downloadText, downloadBlob, printDocument } from '../../shared/export/download'
 import { csvFilename } from '../../shared/export/csv'
@@ -122,6 +123,123 @@ export function createDueScreen(options: DueScreenOptions): HTMLElement {
     } catch {
       notice('The clipboard is not available on this device.', true)
     }
+  }
+
+  // ── The debtor's detail ────────────────────────────────────────────────
+  //
+  // A row in a ledger is a question — "what is behind this figure?" — and the
+  // answer belongs where the eye already is, not on another screen. So a tap
+  // opens the same kind of detail card the Sales screen uses for an invoice:
+  // who owes, how much, since when, how many invoices behind it, and how close
+  // they are to their credit limit. Collection still lives on the customer
+  // card (that is where the identity and the payment history are), so the modal
+  // links there rather than trying to take money from a read-only book.
+
+  const AGING_META: Record<Aging, { tone: 'success' | 'warning' | 'danger'; label: string }> = {
+    fresh: { tone: 'success', label: 'Fresh (<7d)' },
+    aging: { tone: 'warning', label: 'Aging (7–30d)' },
+    stale: { tone: 'danger', label: 'Stale (30d+)' },
+  }
+
+  function openDueDetail(row: DebtorRow): void {
+    const money = (value: number): string => formatMoney(minor(value), { currency })
+    const aging = AGING_META[row.aging]
+
+    const field = (
+      label: string,
+      value: string,
+      tone = 'text-content'
+    ): HTMLElement =>
+      h(
+        'div',
+        { class: 'flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0' },
+        h('span', { class: 'text-sm text-content-muted', text: label }),
+        h('span', { class: `text-sm font-medium tabular-nums ${tone}`, text: value })
+      )
+
+    const dialog = modal({
+      title: 'Due details',
+      subtitle: row.name,
+      iconName: 'menu_book',
+      size: 'md',
+      footer: [
+        button('Close', { variant: 'ghost', onClick: () => dialog.close() }),
+        ...(options.go
+          ? [
+              button('Open customer card', {
+                variant: 'primary',
+                icon: 'person',
+                onClick: () => {
+                  dialog.close()
+                  options.go?.('/customers')
+                },
+              }),
+            ]
+          : []),
+      ],
+    })
+
+    mount(
+      dialog.body,
+      h(
+        'div',
+        { class: 'space-y-4' },
+        // Who, and how urgent — the two facts read first.
+        h(
+          'div',
+          { class: 'flex flex-wrap items-start justify-between gap-3' },
+          h(
+            'div',
+            { class: 'min-w-0' },
+            h('p', { class: 'text-lg font-semibold text-content', text: row.name }),
+            h('p', {
+              class: 'text-xs text-content-muted',
+              text: row.phone || 'No phone number',
+            })
+          ),
+          badge(aging.label, { tone: aging.tone, iconName: 'schedule' })
+        ),
+
+        // The headline figure, given the room it deserves.
+        card(
+          h(
+            'div',
+            { class: 'flex items-center justify-between gap-3' },
+            h(
+              'div',
+              null,
+              h('p', { class: 'text-xs font-medium text-content-muted', text: 'Owed to the shop' }),
+              h('p', {
+                class: 'mt-0.5 text-2xl font-semibold tabular-nums text-content',
+                text: money(row.balance),
+              })
+            ),
+            icon('account_balance_wallet', 'text-3xl text-content-subtle')
+          )
+        ),
+
+        // The ledger behind the figure.
+        card(
+          h(
+            'div',
+            { class: 'divide-y divide-border' },
+            field('Open invoices', String(row.invoices)),
+            field('Oldest sale', row.oldest ? row.oldest.slice(0, 10) : '—'),
+            field(
+              'Days waiting',
+              row.days === null ? '—' : `${row.days} day${row.days === 1 ? '' : 's'}`
+            ),
+            field('Share of the book', `${row.share.toFixed(1)}%`),
+            field('Credit limit', row.limit === null ? 'No limit set' : money(row.limit)),
+            field(
+              'Limit used',
+              row.used === null ? '—' : `${row.used.toFixed(1)}%`,
+              row.used !== null && row.used >= 100 ? 'text-danger' : 'text-content'
+            )
+          )
+        )
+      )
+    )
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
@@ -243,7 +361,8 @@ export function createDueScreen(options: DueScreenOptions): HTMLElement {
             }
             drawTable()
           },
-          onRowClick: options.go ? () => options.go?.('/customers') : undefined,
+          // A row is a question; the modal is the answer, opened in place.
+          onRowClick: (reportRow) => openDueDetail(reportRow as DebtorRow),
           pageSize: 50,
           emptyTitle: 'The book is clean',
         })

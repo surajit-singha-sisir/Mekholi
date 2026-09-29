@@ -9,7 +9,7 @@
  * @vitest-environment jsdom
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { createDueScreen } from './due-screen'
 import { DUE_COLUMNS, type DueBook } from './due-model'
 import type { PluginDb } from '../../shared/registry/plugin-types'
@@ -71,6 +71,9 @@ function rowNames(root: HTMLElement): string[] {
 }
 
 describe('due screen', () => {
+  // The detail modal mounts on document.body, so clear it between cases.
+  afterEach(() => document.body.replaceChildren())
+
   it('renders the whole ledger in the universal table, biggest due first', async () => {
     const { db } = fakeDb()
     const root = createDueScreen({ db, currency: 'BDT' })
@@ -139,5 +142,34 @@ describe('due screen', () => {
     const root = createDueScreen({ db, currency: 'BDT' })
     await settle()
     expect(root.textContent).toContain('The plugin is not enabled for this shop.')
+  })
+
+  it('opens a due detail modal on row click instead of navigating away', async () => {
+    const { db } = fakeDb()
+    const navigated: string[] = []
+    const root = createDueScreen({ db, currency: 'BDT', go: (to) => navigated.push(to) })
+    document.body.append(root)
+    await settle()
+
+    const firstRow = root.querySelector('tbody td[data-column="name"]') as HTMLElement
+    firstRow.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    // The click opens the detail — it must NOT leave the book.
+    expect(navigated).toEqual([])
+
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement
+    expect(dialog).not.toBeNull()
+    expect(dialog.textContent).toContain('Due details')
+    expect(dialog.textContent).toContain('Karim')
+    expect(dialog.textContent).toContain('Open invoices')
+    expect(dialog.textContent).toContain('Share of the book')
+
+    // The one action that changes money lives on the customer card.
+    const openButton = Array.from(dialog.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Open customer card')
+    ) as HTMLButtonElement
+    expect(openButton).toBeTruthy()
+    openButton.click()
+    expect(navigated).toEqual(['/customers'])
   })
 })
