@@ -73,8 +73,14 @@ export function openStockDialog(options: StockDialogOptions): Modal {
   const floor = salesFloor()
   const labels = TITLES[mode]
 
+  // For a transfer the source is never a free choice: stock always leaves the
+  // branch you are standing in, so "From" is pinned to this branch's own
+  // location (the retail floor) and shown disabled. The destination — which may
+  // be another branch — is the only side the user picks.
   const defaultWarehouseId =
-    mode === 'in' || mode === 'out' ? (floor?.warehouseId ?? warehouses[0]?.id ?? '') : (warehouses[0]?.id ?? '')
+    mode === 'in' || mode === 'out' || mode === 'transfer'
+      ? (floor?.warehouseId ?? warehouses[0]?.id ?? '')
+      : (warehouses[0]?.id ?? '')
 
   // ── Fields ──────────────────────────────────────────────────────────────
   const productSearch = input({
@@ -116,6 +122,19 @@ export function openStockDialog(options: StockDialogOptions): Modal {
     options: warehouses.map((w) => ({ value: w.id, label: w.name })),
     value: defaultWarehouseId,
   })
+
+  // The source of a transfer is fixed to the current branch — locked, not just
+  // defaulted — so a user can never move stock out of a branch they are not in.
+  // A disabled <select> still reports its `.value`, which the submit handler
+  // reads, so the transfer knows where the stock is leaving from.
+  if (mode === 'transfer') {
+    warehouseSelect.disabled = true
+    warehouseSelect.classList.add(
+      'disabled:cursor-not-allowed',
+      'disabled:bg-surface-muted',
+      'disabled:opacity-70'
+    )
+  }
 
   const targetSelect = select({
     id: 'stock-warehouse-to',
@@ -359,7 +378,10 @@ export function openStockDialog(options: StockDialogOptions): Modal {
       mode === 'out' || mode === 'adjust' ? field('Reason', reasonSelect, { required: true }) : null,
       mode === 'adjust' ? field('Direction', directionSelect, { required: true }) : null,
       mode === 'transfer'
-        ? field('From', warehouseSelect, { required: true })
+        ? field('From', warehouseSelect, {
+            required: true,
+            hint: 'Stock always moves out of the branch you are in.',
+          })
         : warehouses.length > 0
           ? field('Stock location', warehouseSelect, { required: true })
           : null,

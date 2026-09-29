@@ -133,6 +133,27 @@ describe('stock overview', () => {
     expect(listMock).toHaveBeenCalledWith(expect.objectContaining({ filter: 'low' }))
   })
 
+  it('locks the transfer source to the current branch', async () => {
+    const view = await render()
+    // The button carries an icon ligature ("swap_horiz") before its label, so
+    // match on a substring rather than the exact text.
+    const transferBtn = [...view.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Transfer')
+    ) as HTMLButtonElement | undefined
+    expect(transferBtn).toBeTruthy()
+    transferBtn?.click()
+
+    const from = await vi.waitFor(() => {
+      const el = document.getElementById('stock-warehouse-from') as HTMLSelectElement | null
+      expect(el).toBeTruthy()
+      return el as HTMLSelectElement
+    })
+    // The source cannot be changed — stock only ever leaves this branch — and
+    // it is pinned to the branch's own location.
+    expect(from.disabled).toBe(true)
+    expect(from.value).toBe('w-1')
+  })
+
   it('opens the ledger for the row that was tapped', async () => {
     const navigate = vi.fn()
     const view = stockView({ onNavigate: navigate })
