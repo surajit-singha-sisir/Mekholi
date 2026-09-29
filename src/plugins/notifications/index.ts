@@ -54,6 +54,8 @@ export const notificationsPlugin: Plugin = {
               stock: prefs.stock,
               dues: prefs.dues,
               summary: prefs.summary,
+              warranty: prefs.warranty,
+              transfers: prefs.transfers,
               due_floor_minor: prefs.dueFloorMinor,
             }),
           seen: () => api.storage.get<string[]>(SEEN_KEY, []),

@@ -25,6 +25,10 @@ export interface NotificationPrefs {
   dues: boolean
   /** The day so far — sales count and takings. */
   summary: boolean
+  /** Warranties that have lapsed or are about to. */
+  warranty: boolean
+  /** Stock moved between branches, so a branch hears what arrived and what left. */
+  transfers: boolean
   /** Ignore dues below this many minor units. 0 = every due counts. */
   dueFloorMinor: number
 }
@@ -33,6 +37,8 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   stock: true,
   dues: true,
   summary: true,
+  warranty: true,
+  transfers: true,
   dueFloorMinor: 0,
 }
 
@@ -40,6 +46,8 @@ const KEYS = {
   stock: 'featureStock',
   dues: 'featureDues',
   summary: 'featureSummary',
+  warranty: 'featureWarranty',
+  transfers: 'featureTransfers',
   dueFloorMinor: 'dueFloorMinor',
 } as const
 
@@ -49,6 +57,8 @@ export function readPrefs(settings: PluginSettings): NotificationPrefs {
     stock: settings.get<boolean>(KEYS.stock, true) !== false,
     dues: settings.get<boolean>(KEYS.dues, true) !== false,
     summary: settings.get<boolean>(KEYS.summary, true) !== false,
+    warranty: settings.get<boolean>(KEYS.warranty, true) !== false,
+    transfers: settings.get<boolean>(KEYS.transfers, true) !== false,
     dueFloorMinor: Number.isFinite(floor) && floor > 0 ? Math.trunc(floor) : 0,
   }
 }
@@ -57,6 +67,8 @@ export async function writePrefs(settings: PluginSettings, prefs: NotificationPr
   await settings.set(KEYS.stock, prefs.stock)
   await settings.set(KEYS.dues, prefs.dues)
   await settings.set(KEYS.summary, prefs.summary)
+  await settings.set(KEYS.warranty, prefs.warranty)
+  await settings.set(KEYS.transfers, prefs.transfers)
   await settings.set(KEYS.dueFloorMinor, prefs.dueFloorMinor)
 }
 
@@ -79,13 +91,46 @@ export interface NotificationsFeed {
     sale_count: number
     total_minor: number
   } | null
+  warranty?: {
+    /** ACTIVE promises whose end date falls inside the horizon. */
+    expiring_count: number
+    /** ACTIVE promises whose end date has already passed. */
+    expired_count: number
+    /** How many days ahead "expiring" looks. */
+    horizon_days: number
+    /** The promise ending soonest, for the sentence. */
+    soonest_name: string | null
+    soonest_ends_on: string | null
+    /** Up to five product names ending inside the horizon. */
+    expiring_names: string[]
+  } | null
+  transfers?: {
+    /** Transfers recorded inside the window. */
+    count: number
+    /** Total units moved across those transfers. */
+    unit_count: number
+    /** The most recent movement's endpoints, named. */
+    latest_from: string | null
+    latest_to: string | null
+    /** Up to five product names on the most recent transfer. */
+    latest_names: string[]
+    /** How many hours back the count reaches. */
+    window_hours: number
+  } | null
 }
 
 export type Severity = 'danger' | 'warning' | 'info'
 
 export interface NotificationItem {
   /** Stable id of the *kind* — one bell entry per kind. */
-  id: 'out-of-stock' | 'low-stock' | 'dues' | 'summary'
+  id:
+    | 'out-of-stock'
+    | 'low-stock'
+    | 'dues'
+    | 'summary'
+    | 'warranty-expiring'
+    | 'warranty-expired'
+    | 'stock-transfer'
   severity: Severity
   icon: string
   title: string
@@ -125,9 +170,12 @@ export function buildItems(feed: NotificationsFeed, prefs: NotificationPrefs, cu
         id: 'low-stock',
         severity: 'warning',
         icon: 'inventory_2',
-        title: low_count === 1 ? '1 product is running low' : `${low_count} products are running low`,
-        body: names(low_names, low_count),
-        route: '/stock',
+        title:
+          low_count === 1
+            ? '1 product reached its reorder point'
+            : `${low_count} products reached their reorder point`,
+        body: `${names(low_names, low_count)} Reorder before the shelf runs dry.`.trim(),
+        route: '/stock?filter=low',
         signature: `low:${low_count}:${low_names.join('|')}`,
       })
     }
@@ -143,6 +191,66 @@ export function buildItems(feed: NotificationsFeed, prefs: NotificationPrefs, cu
       body: top_name ? `Largest: ${top_name}, ${taka(top_due_minor)}.` : '',
       route: '/customers',
       signature: `dues:${debtor_count}:${total_due_minor}`,
+    })
+  }
+
+  if (prefs.warranty && feed.warranty) {
+    const { expiring_count, expired_count, horizon_days, soonest_name, soonest_ends_on, expiring_names } =
+      feed.warranty
+    if (expiring_count > 0) {
+      const soon =
+        soonest_name && soonest_ends_on
+          ? `Soonest: ${soonest_name}, ends ${shortDate(soonest_ends_on)}.`
+          : ''
+      const list = expiring_names.length ? ` ${names(expiring_names, expiring_count)}` : ''
+      items.push({
+        id: 'warranty-expiring',
+        severity: 'warning',
+        icon: 'verified',
+        title:
+          expiring_count === 1
+            ? `1 warranty expires within ${horizon_days} days`
+            : `${expiring_count} warranties expire within ${horizon_days} days`,
+        body: `${soon}${list}`.trim(),
+        route: '/plugins/warranty',
+        signature: `warr-exp:${expiring_count}:${soonest_ends_on ?? ''}`,
+      })
+    }
+    if (expired_count > 0) {
+      items.push({
+        id: 'warranty-expired',
+        severity: 'warning',
+        icon: 'gpp_maybe',
+        title:
+          expired_count === 1
+            ? '1 warranty has lapsed'
+            : `${expired_count} warranties have lapsed`,
+        body: 'Their cover has ended — check before honouring a claim.',
+        route: '/plugins/warranty',
+        signature: `warr-lapsed:${expired_count}`,
+      })
+    }
+  }
+
+  if (prefs.transfers && feed.transfers && feed.transfers.count > 0) {
+    const { count, unit_count, latest_from, latest_to, latest_names, window_hours } = feed.transfers
+    const window = window_hours >= 24 ? `${Math.round(window_hours / 24)}d` : `${window_hours}h`
+    const leg =
+      latest_from && latest_to
+        ? ` Latest: ${latest_from} → ${latest_to}.`
+        : ''
+    const list = latest_names.length ? ` ${names(latest_names, latest_names.length)}` : ''
+    items.push({
+      id: 'stock-transfer',
+      severity: 'info',
+      icon: 'swap_horiz',
+      title:
+        count === 1
+          ? `1 stock transfer · ${unit_count} unit${unit_count === 1 ? '' : 's'} moved`
+          : `${count} stock transfers · ${unit_count} unit${unit_count === 1 ? '' : 's'} moved`,
+      body: `In the last ${window}.${leg}${list}`.trim(),
+      route: '/stock',
+      signature: `xfer:${count}:${unit_count}:${latest_to ?? ''}`,
     })
   }
 
@@ -168,6 +276,21 @@ function names(list: string[], total: number): string {
   if (list.length === 0) return ''
   const shown = list.join(', ')
   return total > list.length ? `${shown} and ${total - list.length} more.` : `${shown}.`
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * A `YYYY-MM-DD` date, read as the plain day it is — never as a timestamp, so
+ * no timezone can shift a warranty's last day across midnight. Anything that is
+ * not a clean date is shown as-is rather than guessed at.
+ */
+function shortDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!match) return iso
+  const [, year, month, day] = match
+  const name = MONTHS[Number(month) - 1]
+  return name ? `${Number(day)} ${name} ${year}` : iso
 }
 
 /** How many of these items this device has not acknowledged yet. */

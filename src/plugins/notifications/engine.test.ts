@@ -91,11 +91,102 @@ describe('the read arithmetic', () => {
   })
 })
 
+describe('warranty and transfer watchers', () => {
+  it('warns before a warranty lapses, naming the soonest and its date', () => {
+    const feed: NotificationsFeed = {
+      warranty: {
+        expiring_count: 3,
+        expired_count: 0,
+        horizon_days: 30,
+        soonest_name: 'Walton Fridge',
+        soonest_ends_on: '2026-10-15',
+        expiring_names: ['Walton Fridge', 'Vision TV'],
+      },
+    }
+    const item = buildItems(feed, DEFAULT_PREFS, 'BDT').find((i) => i.id === 'warranty-expiring')!
+    expect(item.severity).toBe('warning')
+    expect(item.title).toBe('3 warranties expire within 30 days')
+    expect(item.body).toContain('Walton Fridge')
+    expect(item.body).toContain('15 Oct 2026')
+    expect(item.route).toBe('/plugins/warranty')
+  })
+
+  it('rings once a warranty has actually lapsed', () => {
+    const feed: NotificationsFeed = {
+      warranty: {
+        expiring_count: 0,
+        expired_count: 2,
+        horizon_days: 30,
+        soonest_name: null,
+        soonest_ends_on: null,
+        expiring_names: [],
+      },
+    }
+    const item = buildItems(feed, DEFAULT_PREFS, 'BDT').find((i) => i.id === 'warranty-expired')!
+    expect(item.title).toBe('2 warranties have lapsed')
+  })
+
+  it('tells the branch what stock moved, from where to where', () => {
+    const feed: NotificationsFeed = {
+      transfers: {
+        count: 2,
+        unit_count: 40,
+        latest_from: 'Sylhet Godown',
+        latest_to: 'Sylhet Shop Floor',
+        latest_names: ['Atta 2kg', 'Salt'],
+        window_hours: 24,
+      },
+    }
+    const item = buildItems(feed, DEFAULT_PREFS, 'BDT').find((i) => i.id === 'stock-transfer')!
+    expect(item.severity).toBe('info')
+    expect(item.title).toBe('2 stock transfers · 40 units moved')
+    expect(item.body).toContain('Sylhet Godown → Sylhet Shop Floor')
+    expect(item.body).toContain('Atta 2kg')
+  })
+
+  it('stays silent about warranty and transfers when switched off', () => {
+    const feed: NotificationsFeed = {
+      warranty: {
+        expiring_count: 5,
+        expired_count: 1,
+        horizon_days: 30,
+        soonest_name: 'X',
+        soonest_ends_on: '2026-10-01',
+        expiring_names: ['X'],
+      },
+      transfers: {
+        count: 1,
+        unit_count: 3,
+        latest_from: 'A',
+        latest_to: 'B',
+        latest_names: ['Y'],
+        window_hours: 24,
+      },
+    }
+    const items = buildItems(feed, { ...DEFAULT_PREFS, warranty: false, transfers: false }, 'BDT')
+    expect(items).toEqual([])
+  })
+})
+
 describe('prefs round trip', () => {
   it('reads back what it wrote, and treats rubbish as the defaults', async () => {
     const settings = memorySettings()
-    await writePrefs(settings, { stock: false, dues: true, summary: false, dueFloorMinor: 5000 })
-    expect(readPrefs(settings)).toEqual({ stock: false, dues: true, summary: false, dueFloorMinor: 5000 })
+    await writePrefs(settings, {
+      stock: false,
+      dues: true,
+      summary: false,
+      warranty: false,
+      transfers: true,
+      dueFloorMinor: 5000,
+    })
+    expect(readPrefs(settings)).toEqual({
+      stock: false,
+      dues: true,
+      summary: false,
+      warranty: false,
+      transfers: true,
+      dueFloorMinor: 5000,
+    })
 
     const dirty = memorySettings({ dueFloorMinor: -50 })
     expect(readPrefs(dirty)).toEqual(DEFAULT_PREFS)

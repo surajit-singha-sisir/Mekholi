@@ -1,5 +1,5 @@
 /**
- * The notifications settings screen: which of the three watchers may ring.
+ * The notifications settings screen: which of the shop's watchers may ring.
  *
  * One card per watcher, a switch on each, and the due watcher carries its
  * floor — the amount below which baki is a neighbourly arrangement, not
@@ -22,7 +22,7 @@ export interface SettingsScreenHost {
 }
 
 interface Watcher {
-  key: 'stock' | 'dues' | 'summary'
+  key: 'stock' | 'dues' | 'summary' | 'warranty' | 'transfers'
   icon: string
   title: string
   subtitle: string
@@ -34,6 +34,18 @@ const WATCHERS: Watcher[] = [
     icon: 'inventory_2',
     title: 'Stock running out',
     subtitle: 'Rings when a tracked product hits zero, or falls to its reorder point.',
+  },
+  {
+    key: 'transfers',
+    icon: 'swap_horiz',
+    title: 'Stock transfers',
+    subtitle: 'Tells the branch what stock has just moved in or out, and how much.',
+  },
+  {
+    key: 'warranty',
+    icon: 'verified',
+    title: 'Warranty expiry',
+    subtitle: 'Rings before a promise lapses, and again once it has — so no claim is honoured by mistake.',
   },
   {
     key: 'dues',
@@ -61,7 +73,7 @@ export function createNotificationsSettings(host: SettingsScreenHost): HTMLEleme
   root.append(
     card(
       cardHeader('Featured notifications', {
-        subtitle: 'The bell on the top bar watches the shop. Choose which of its three watchers may ring.',
+        subtitle: 'The bell on the top bar watches the shop. Choose which of its watchers may ring.',
       })
     )
   )
