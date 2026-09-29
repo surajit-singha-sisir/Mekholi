@@ -46,7 +46,7 @@ export const warrantyManifest: PluginManifest = {
   id: 'warranty',
   name: 'Warranty',
   details,
-  version: '1.0.0',
+  version: '1.1.0',
   coreApiVersion: '^1.0.0',
   category: 'optional',
   // The one that stays free: a shop should be able to keep a promise without paying for the privilege.

@@ -315,6 +315,18 @@ export interface PanelDefinition {
   label: string
   permission?: string
   render: (context: PanelContext) => HTMLElement | Promise<HTMLElement>
+  /**
+   * Honoured on POS panels only. A line the cashier has switched a plugin's
+   * cover *off* for should not be described on the slip as if it were on, so a
+   * POS panel may say which of its own `printable` product fields to leave off
+   * the receipt, per variant — the same seam the warranty checkbox uses to keep
+   * the slip and the promise telling the same story.
+   *
+   * Keyed by variant id (what a sale line carries), to the field keys to omit.
+   * The host reads this once, when it builds the receipt for the sale just
+   * completed; a plugin that keeps no such state simply never sets it.
+   */
+  suppressPrintFields?: () => ReadonlyMap<string, readonly string[]>
   /** Set by the host. Never author this. */
   source?: string
 }

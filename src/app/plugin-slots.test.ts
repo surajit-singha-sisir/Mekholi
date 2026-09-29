@@ -21,6 +21,7 @@ import {
   pluginReportKey,
   pluginReports,
   posFieldValues,
+  posPrintSuppressions,
   printableNotes,
   resolveScan,
   runPluginReport,
@@ -153,6 +154,83 @@ describe('receipt notes', () => {
     await registry.sync([])
     const notes = printableNotes(registry, [{ variantId: 'v1', metadata: { 'demo.batch': 'BT-14' } }])
     expect([...notes.keys()]).toEqual([])
+  })
+
+  it('leaves off a field a line was told to suppress, and only for that line', () => {
+    const suppressed = new Map([['v1', new Set(['demo.batch'])]])
+    const notes = printableNotes(
+      registry,
+      [
+        { variantId: 'v1', metadata: { 'demo.batch': 'BT-14', 'demo.expiry': 12 } },
+        { variantId: 'v2', metadata: { 'demo.batch': 'BT-99', 'demo.expiry': 6 } },
+      ],
+      suppressed
+    )
+
+    // v1 chose not to print the batch; its expiry still prints.
+    expect(notes.get('v1')).toEqual(['Expiry: in 12 days'])
+    // v2 was not touched, so it prints in full.
+    expect(notes.get('v2')).toEqual(['Batch number: BT-99', 'Expiry: in 6 days'])
+  })
+
+  it('drops the line entirely when every printable field on it is suppressed', () => {
+    const suppressed = new Map([['v1', new Set(['demo.batch', 'demo.expiry'])]])
+    const notes = printableNotes(
+      registry,
+      [{ variantId: 'v1', metadata: { 'demo.batch': 'BT-14', 'demo.expiry': 12 } }],
+      suppressed
+    )
+    expect(notes.has('v1')).toBe(false)
+  })
+})
+
+describe('receipt suppressions a POS panel asks for', () => {
+  async function registryWithPanels(
+    panels: readonly {
+      id: string
+      suppress?: () => ReadonlyMap<string, readonly string[]>
+    }[]
+  ): Promise<PluginRegistry> {
+    const reg = registryWith({
+      id: 'demo',
+      name: 'Demo',
+      version: '1.0.0',
+      register: (api) => {
+        for (const panel of panels) {
+          api.registerPOSPanel({
+            id: panel.id,
+            label: 'Cover',
+            render: () => document.createElement('div'),
+            ...(panel.suppress ? { suppressPrintFields: panel.suppress } : {}),
+          })
+        }
+      },
+    })
+    await reg.sync(['demo'])
+    return reg
+  }
+
+  it('is empty when no panel asks for anything', async () => {
+    const reg = await registryWithPanels([{ id: 'p.one' }])
+    expect(posPrintSuppressions(reg).size).toBe(0)
+  })
+
+  it('merges the variants and field keys every panel wants left off the slip', async () => {
+    const reg = await registryWithPanels([
+      { id: 'p.one', suppress: () => new Map([['v1', ['warranty_months']]]) },
+      {
+        id: 'p.two',
+        suppress: () =>
+          new Map([
+            ['v1', ['serial']],
+            ['v2', ['warranty_months']],
+          ]),
+      },
+    ])
+
+    const merged = posPrintSuppressions(reg)
+    expect(merged.get('v1')).toEqual(new Set(['warranty_months', 'serial']))
+    expect(merged.get('v2')).toEqual(new Set(['warranty_months']))
   })
 })
 

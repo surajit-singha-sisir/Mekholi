@@ -35,6 +35,7 @@ import { toastSuccess } from '../../components/feedback/toast'
 import { h, srOnly } from '../../components/ui/h'
 import type {
   PanelContext,
+  PanelLine,
   Plugin,
   PluginAPI,
   PluginPageModule,
@@ -85,6 +86,18 @@ export const warrantyPlugin: Plugin = {
   ...(warrantyManifest.icon ? { icon: warrantyManifest.icon } : {}),
 
   register(api) {
+    // ── The cashier's "not this one" ────────────────────────────────────
+    // Which covered lines the shop chose *not* to promise on the cart in front
+    // of the till, by variant. Kept in the plugin's own closure — the panel is
+    // redrawn on every cart change (docs/05), so the DOM cannot hold it — and
+    // cleared when the sale it belongs to completes.
+    const excluded = new Set<string>()
+    // The same choice, snapshotted for the one thing that reads it after the
+    // cart is gone: the receipt of the sale that just completed. The register
+    // takes its copy over the wire; this is what keeps the slip from printing a
+    // promise that was never written.
+    let printedExcluded: ReadonlySet<string> = new Set<string>()
+
     for (const permission of warrantyManifest.permissions ?? []) {
       api.registerPermission({
         key: permission.key,
@@ -166,7 +179,17 @@ export const warrantyPlugin: Plugin = {
       id: 'warranty.till',
       label: 'Cover',
       permission: WARRANTY_VIEW,
-      render: (context) => tillPanel(api, context),
+      render: (context) => tillPanel(api, context, excluded),
+      // A line the cashier un-ticked was never promised, so its warranty months
+      // must not appear on the slip. The host asks this when it builds the
+      // receipt for the sale that just completed; `printedExcluded` is that
+      // sale's un-ticked lines, and the field it hides is the one this plugin
+      // prints (`warranty_months`).
+      suppressPrintFields: () => {
+        const map = new Map<string, readonly string[]>()
+        for (const variantId of printedExcluded) map.set(variantId, [WARRANTY_MONTHS_KEY])
+        return map
+      },
     })
 
     // ── The finished sale ───────────────────────────────────────────────
@@ -209,8 +232,19 @@ export const warrantyPlugin: Plugin = {
       if (!saleId || written.has(saleId)) return
       written.add(saleId)
 
+      // Take this sale's un-ticked lines before the cart is cleared: the wire
+      // call skips them (and any other device honours that, because the server
+      // writes them to the sale), and the receipt drawn a moment from now hides
+      // their cover. Then the working set is empty for the next customer.
+      const skip = [...excluded]
+      printedExcluded = new Set(skip)
+      excluded.clear()
+
       void api.db
-        .rpc<RegisterResult>('register', { sale_id: saleId })
+        .rpc<RegisterResult>('register', {
+          sale_id: saleId,
+          ...(skip.length > 0 ? { skip_variants: skip } : {}),
+        })
         .then((result) => {
           if (result.created === 0) return
           api.storage.set(LAST_SALE_KEY, saleId)
@@ -338,12 +372,11 @@ async function summaryTile(api: PluginAPI): Promise<HTMLElement> {
 
 // ── The till panel ────────────────────────────────────────────────────────
 
-function tillPanel(api: PluginAPI, context: PanelContext): HTMLElement {
+function tillPanel(api: PluginAPI, context: PanelContext, excluded: Set<string>): HTMLElement {
   const rule = {
     coverAll: api.settings.get<boolean>(COVER_ALL_KEY, DEFAULT_COVER_ALL),
     defaultMonths: api.settings.get<number>(DEFAULT_MONTHS_KEY, DEFAULT_MONTHS),
   }
-  const summary = tillSummary(context.lines, rule)
   const covered = coveredLines(context.lines, rule)
 
   if (covered.length === 0) {
@@ -356,33 +389,91 @@ function tillPanel(api: PluginAPI, context: PanelContext): HTMLElement {
     )
   }
 
+  const badgeHost = h('div')
+  const drawBadge = (): void => {
+    const applied = covered.filter((entry) => !excluded.has(entry.line.variantId))
+    const summary = tillSummary(
+      applied.map((entry) => entry.line),
+      rule
+    )
+    badgeHost.replaceChildren(
+      applied.length === 0
+        ? badge('No cover on this sale', { tone: 'neutral', iconName: 'shield' })
+        : badge(summary.label, { tone: 'info', iconName: 'verified_user' })
+    )
+  }
+  drawBadge()
+
   return h(
     'div',
     { class: 'space-y-2' },
-    badge(summary.label, { tone: 'info', iconName: 'verified_user' }),
+    badgeHost,
     h(
       'div',
       { class: 'space-y-1' },
-      ...covered.map((entry) =>
-        h(
-          'div',
-          { class: 'flex items-center justify-between gap-2 text-xs' },
-          h(
-            'span',
-            { class: 'truncate text-content' },
-            entry.line.variantName
-              ? `${entry.line.name} — ${entry.line.variantName}`
-              : entry.line.name
-          ),
-          h('span', { class: 'shrink-0 text-content-muted' }, monthsLabel(entry.months))
-        )
-      )
+      ...covered.map((entry) => coverRow(entry, excluded, drawBadge))
     ),
     h(
       'p',
       { class: 'text-[11px] text-content-subtle' },
-      'Written on the invoice when this sale completes. Units are named afterwards, on the sale.'
+      'Leave a line ticked to promise its cover; untick it to sell it without one. ' +
+        'Written on the invoice when the sale completes, and units are named afterwards, on the sale.'
     )
+  )
+}
+
+/**
+ * One covered line, as a tick the cashier can turn off.
+ *
+ * Ticked is the default and the common case — a shop that switched Warranty on
+ * means to keep its promises — so the box starts checked, and un-ticking it is
+ * the deliberate "not this one". The choice lives in the shared `excluded` set,
+ * not the DOM, so it survives the panel being redrawn when the cart changes.
+ */
+function coverRow(
+  entry: { line: PanelLine; months: number },
+  excluded: Set<string>,
+  onChange: () => void
+): HTMLElement {
+  const variantId = entry.line.variantId
+  const name = entry.line.variantName
+    ? `${entry.line.name} — ${entry.line.variantName}`
+    : entry.line.name
+
+  const box = h('input', {
+    type: 'checkbox',
+    class: 'h-3.5 w-3.5 shrink-0 accent-primary',
+    checked: !excluded.has(variantId),
+  })
+  const nameEl = h('span', { class: 'truncate text-content' }, name)
+  const monthsEl = h('span', { class: 'shrink-0 text-content-muted' }, monthsLabel(entry.months))
+
+  const paint = (): void => {
+    const on = box.checked
+    nameEl.className = on ? 'truncate text-content' : 'truncate text-content-muted line-through'
+    monthsEl.className = on
+      ? 'shrink-0 text-content-muted'
+      : 'shrink-0 text-content-subtle line-through'
+  }
+
+  box.addEventListener('change', () => {
+    if (box.checked) excluded.delete(variantId)
+    else excluded.add(variantId)
+    paint()
+    onChange()
+  })
+  paint()
+
+  return h(
+    'label',
+    {
+      class: 'flex cursor-pointer items-center gap-2 text-xs',
+      title: box.checked ? 'Covered — untick to leave this line without warranty' : 'No warranty on this line',
+    },
+    box,
+    nameEl,
+    h('span', { class: 'flex-1' }),
+    monthsEl
   )
 }
 

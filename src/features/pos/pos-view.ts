@@ -45,6 +45,7 @@ import {
   panelLines,
   pluginPanelsHost,
   posFieldValues,
+  posPrintSuppressions,
   printableNotes,
   resolveScan,
   saleAdjustmentsHost,
@@ -1208,7 +1209,13 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
       if (options.invoice) {
         try {
           const sale = await repos.sales.get(result.sale_id)
-          if (sale) openReceipt(sale, currency, 'Mekholi', printableNotes(registry, seen.values()))
+          if (sale)
+            openReceipt(
+              sale,
+              currency,
+              'Mekholi',
+              printableNotes(registry, seen.values(), posPrintSuppressions(registry))
+            )
         } catch (error) {
           toastWarning(
             `Sale ${result.invoice_no} is saved, but the receipt could not be loaded: ` +

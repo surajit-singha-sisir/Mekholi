@@ -518,7 +518,8 @@ export function pluginSaleTabsHost(registry: PluginRegistry, context: PanelConte
  */
 export function printableNotes(
   registry: PluginRegistry,
-  products: Iterable<{ variantId: string; metadata: Record<string, unknown> }>
+  products: Iterable<{ variantId: string; metadata: Record<string, unknown> }>,
+  suppressed?: ReadonlyMap<string, ReadonlySet<string>>
 ): Map<string, string[]> {
   const fields = printableFields(registry)
   const notes = new Map<string, string[]>()
@@ -526,8 +527,12 @@ export function printableNotes(
   if (fields.length === 0) return notes
 
   for (const product of products) {
+    const omit = suppressed?.get(product.variantId)
     const lines: string[] = []
     for (const field of fields) {
+      // A line the cashier switched a plugin's cover off for: the promise was
+      // never written, so the slip must not claim it was (see PanelDefinition).
+      if (omit?.has(field.key)) continue
       const value = product.metadata[field.key]
       if (value === null || value === undefined || value === '') continue
       lines.push(`${field.label}: ${field.format ? field.format(value) : String(value)}`)
@@ -536,6 +541,29 @@ export function printableNotes(
   }
 
   return notes
+}
+
+/**
+ * The printable fields a POS panel wants left off *this* sale's receipt, per
+ * variant, merged across every panel that asked.
+ *
+ * The receipt is built once when a sale completes, and a plugin's panel is the
+ * only thing that knows a line's cover was declined at the till — so the host
+ * asks each POS panel, right then, which of its own printable fields to omit.
+ * Keyed by variant id; the values are the field keys `printableNotes` skips.
+ */
+export function posPrintSuppressions(registry: PluginRegistry): Map<string, Set<string>> {
+  const merged = new Map<string, Set<string>>()
+  for (const panel of registry.posPanels.items) {
+    const asked = panel.suppressPrintFields?.()
+    if (!asked) continue
+    for (const [variantId, keys] of asked) {
+      const set = merged.get(variantId) ?? new Set<string>()
+      for (const key of keys) set.add(key)
+      merged.set(variantId, set)
+    }
+  }
+  return merged
 }
 
 /** The plugin values shown on a POS tile, in the order the plugin declared them. */

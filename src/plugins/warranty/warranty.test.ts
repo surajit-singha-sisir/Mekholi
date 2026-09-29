@@ -541,6 +541,24 @@ describe('the promise a cart will make', () => {
     expect(textOf(host)).toContain('Written on the invoice')
   })
 
+  it('lets the cashier untick a line, and it is covered by default', async () => {
+    await registry.sync(['warranty'])
+    const host = await registry.posPanels.items[0]!.render({
+      organizationId: ORG,
+      branchId: BRANCH,
+      currency: 'BDT',
+      total: 5500000,
+      customerId: null,
+      lines: cartLine({ quantity: 2 }),
+    })
+
+    const boxes = [...host.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[]
+    expect(boxes).toHaveLength(1)
+    // Covered lines start ticked: a shop that switched Warranty on means to keep
+    // its promises unless the cashier says otherwise.
+    expect(boxes[0]!.checked).toBe(true)
+  })
+
   it('says so plainly when the cart promises nothing, and when it is empty', async () => {
     await registry.sync(['warranty'])
     const context = {
@@ -585,6 +603,47 @@ describe('a completed sale', () => {
       { fn: 'register', args: { sale_id: SALE } },
     ])
     expect(localStorage.getItem(`mekholi.plugin.warranty.${LAST_SALE_KEY}`)).toBe(JSON.stringify(SALE))
+  })
+
+  it('skips a line the cashier unticked, and hides its cover on the slip', async () => {
+    answers.register = {
+      sale_id: SALE,
+      invoice_no: 'INV-2026-000042',
+      created: 0,
+      existing: 0,
+      skipped_lines: 1,
+      capped_lines: 0,
+      starts_on: '2026-09-01',
+      units: [],
+    } satisfies RegisterResult
+    await registry.sync(['warranty'])
+
+    // The cashier opens the panel and unticks the one covered line.
+    const panel = registry.posPanels.items[0]!
+    const host = await panel.render({
+      organizationId: ORG,
+      branchId: BRANCH,
+      currency: 'BDT',
+      total: 5500000,
+      customerId: null,
+      lines: cartLine(),
+    })
+    const box = host.querySelector('input[type="checkbox"]') as HTMLInputElement
+    box.checked = false
+    box.dispatchEvent(new Event('change'))
+
+    bus.emit('sale.completed', completed())
+    await settle()
+
+    // The wire call names the unticked variant, so the server (and any other
+    // device) skips it.
+    expect(calls.filter((call) => call.fn === 'register')).toEqual([
+      { fn: 'register', args: { sale_id: SALE, skip_variants: ['v1'] } },
+    ])
+
+    // And the receipt hides that line's warranty months.
+    const suppressed = panel.suppressPrintFields!()
+    expect([...suppressed.get('v1')!]).toEqual([WARRANTY_MONTHS_KEY])
   })
 
   it('writes one sale once, however many times the event arrives', async () => {

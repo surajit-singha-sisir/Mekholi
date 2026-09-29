@@ -326,8 +326,8 @@ export const PHRASES: Readonly<Record<string, string>> = {
   account: 'অ্যাকাউন্ট',
   profile: 'প্রোফাইল',
   password: 'পাসওয়ার্ড',
-  permissions: 'অনুমতি',
-  permission: 'অনুমতি',
+  'permissions': 'অনুমতি',
+  'permission': 'অনুমতি',
 }
 
 /**
@@ -466,8 +466,8 @@ export const WORDS: Readonly<Record<string, string>> = {
   settings: 'সেটিংস',
   account: 'অ্যাকাউন্ট',
   password: 'পাসওয়ার্ড',
-  permission: 'অনুমতি',
-  permissions: 'অনুমতি',
+  'permission': 'অনুমতি',
+  'permissions': 'অনুমতি',
   dashboard: 'ড্যাশবোর্ড',
   overview: 'সারসংক্ষেপ',
   summary: 'সারসংক্ষেপ',
