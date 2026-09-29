@@ -22,6 +22,7 @@ import { getRepositories } from '../../app/data'
 import { pluginHeaderHost } from '../../app/plugin-slots'
 import { appPath } from '../../app/router/router'
 import { selectOrganization } from '../../app/platform/auth'
+import { installPullToRefresh } from './pull-to-refresh'
 import type { EventBus } from '../../shared/bus'
 
 export interface AppShellOptions {
@@ -202,6 +203,11 @@ export function appShell(options: AppShellOptions): AppShell {
     markActive(drawerHost, currentPath())
   }
 
+  const mainOutlet = h('main', {
+    class: 'min-h-0 flex-1 overflow-y-auto',
+    id: 'app-outlet',
+  }, outlet)
+
   const shell = h(
     'div',
     // `app-shell` (base.css) rather than `h-screen`: on a phone 100vh is the
@@ -290,11 +296,19 @@ export function appShell(options: AppShellOptions): AppShell {
       // Same reason: without `min-h-0` the outlet's own height wins over
       // `flex-1` and `overflow-y-auto` never engages, so a tall view pushes
       // the document instead of scrolling inside the frame.
-      h('main', { class: 'min-h-0 flex-1 overflow-y-auto', id: 'app-outlet' }, outlet)
+      mainOutlet
     ),
 
     drawer
   )
+
+  // The shell scrolls internally, so Chrome's document-level pull gesture
+  // cannot reach the page. Restore that familiar mobile action on the real
+  // scroll surface, with a visible release threshold before reloading.
+  installPullToRefresh({
+    surface: mainOutlet,
+    onRefresh: () => window.location.reload(),
+  })
 
   renderSidebar()
 
