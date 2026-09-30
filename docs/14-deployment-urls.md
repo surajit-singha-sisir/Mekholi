@@ -40,10 +40,15 @@ No SQL and no migration can set these; they are project configuration.
 
 **Supabase → Authentication → URL Configuration**
 
+Production now runs on the custom domain `https://mekholipos.kehem.com` (served
+at the root, not under a `/Mekholi/` sub-path). Use that as the Site URL. The
+old GitHub Pages URL (`https://surajit-singha-sisir.github.io/Mekholi/`) can be
+left in Redirect URLs if that host is still reachable, or removed once it is not.
+
 | Field | Value |
 |---|---|
-| **Site URL** | `https://surajit-singha-sisir.github.io/Mekholi/` |
-| **Redirect URLs** | `https://surajit-singha-sisir.github.io/Mekholi/` **and** `http://localhost:5173/` (and `http://localhost:5173/**` if you want deep links to survive an OAuth return) |
+| **Site URL** | `https://mekholipos.kehem.com` |
+| **Redirect URLs** | `https://mekholipos.kehem.com/**` **and** `http://localhost:5173/**` (the `/**` wildcard lets the `?code=` return and deep links survive an OAuth return) |
 
 The Site URL is the fallback, so it must be the *production* URL — the opposite
 of the usual local-development convenience. Development is covered by listing
@@ -89,7 +94,7 @@ left behind is worse than the error that caused it.
 ## 4. How to verify a deployment
 
 1. Sign in with Google **from the deployed site** and watch the address bar: it
-   should return to `https://surajit-singha-sisir.github.io/Mekholi/` with no
+   should return to `https://mekholipos.kehem.com/` with no
    `access_token`, `refresh_token` or `code` in it.
 2. `node node_modules/.scratch/oauth.mjs` (with `OAUTH_SITE` pointed at a local
    build) checks the four shapes without a Google account: PKCE on the authorize
