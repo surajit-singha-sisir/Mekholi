@@ -1,7 +1,7 @@
 {
   "generatedFrom": "live database",
   "generatedBy": "tools/api-contract.mjs",
-  "migrations": 71,
+  "migrations": 74,
   "rpc": {
     "accept_staff_invitations": {
       "returns": "integer",
@@ -1228,6 +1228,16 @@
           "name": "p_note",
           "type": "text",
           "required": false
+        }
+      ]
+    },
+    "discard_held_sale": {
+      "returns": "void",
+      "params": [
+        {
+          "name": "p_sale_id",
+          "type": "uuid",
+          "required": true
         }
       ]
     }

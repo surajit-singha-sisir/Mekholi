@@ -206,6 +206,15 @@ export interface SaleRepository {
 
   resume(saleId: string): Promise<ResumedSale>
 
+  /**
+   * Throw a held cart away without resuming it. Flips the HELD row to
+   * CANCELLED server-side (`discard_held_sale`), or drops the local draft when
+   * the hold only ever lived on this device. No stock moved for a hold, so
+   * there is nothing to reverse.
+   */
+  discard(saleId: string): Promise<void>
+
+
   /** Newest first, this branch only. */
   list(query: PageRequest & { branchId: string; status?: string[] }): Promise<Page<SaleRow>>
   /**

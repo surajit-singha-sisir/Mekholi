@@ -1394,12 +1394,46 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
         h('p', { class: 'text-xs font-medium text-content truncate', text: sale.customer?.name ?? 'Walk-in' }),
         h('p', { class: 'text-[11px] text-content-subtle', text: `${sale.invoice_no} · ${heldFor}m ago` })
       ),
-      button('Resume', {
-        size: 'sm',
-        variant: 'outline',
-        onClick: () => void resumeHeld(sale.id),
-      })
+      h('div', { class: 'flex shrink-0 items-center gap-1' },
+        button('Resume', {
+          size: 'sm',
+          variant: 'outline',
+          onClick: () => void resumeHeld(sale.id),
+        }),
+        iconButton('delete', 'Delete this held sale', {
+          size: 'sm',
+          variant: 'ghost',
+          class: 'text-content-subtle hover:border-danger/50 hover:bg-danger-soft hover:text-danger',
+          onClick: () => void discardHeld(sale),
+        })
+      )
     )
+  }
+
+  /**
+   * Throw a parked cart away. A hold moved no stock and took no money, so this
+   * is a plain delete — but it is still someone's basket, so it asks first and
+   * names what it is discarding.
+   */
+  async function discardHeld(sale: SaleRow): Promise<void> {
+    const who = sale.customer?.name ?? 'Walk-in'
+    const ok = await confirm('Delete this held sale?', {
+      message: `${who} · ${sale.invoice_no} will be removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+      iconName: 'delete',
+    })
+    if (!ok) return
+    try {
+      await repos.sales.discard(sale.id)
+      // If the deleted hold is the cart on screen, it is no longer a hold to
+      // resume — forget the link so completing does not try to cancel it again.
+      if (cart.state.heldSaleId === sale.id) cart.replace(cart.state.cart, null)
+      toastSuccess('Held sale deleted.')
+      void refreshHeld()
+    } catch (error) {
+      toastError(translateError(error).message)
+    }
   }
 
   async function resumeHeld(saleId: string): Promise<void> {

@@ -196,6 +196,16 @@ export function createOfflineRepositories(next: Repositories, options: OfflineOp
       return drafts.asResumed(draft)
     },
 
+    async discard(saleId) {
+      // A cart parked offline only ever lived on this device — throwing it away
+      // is a local delete, and needs no server.
+      if (isLocalDraft(saleId)) {
+        await drafts.remove(saleId)
+        return
+      }
+      return next.sales.discard(saleId)
+    },
+
     /**
      * A queued sale is still a sale to everybody standing at the counter.
      *

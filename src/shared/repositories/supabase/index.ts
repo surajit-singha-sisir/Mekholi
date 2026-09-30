@@ -969,6 +969,11 @@ function createSales(client: SupabaseClient): SaleRepository {
       return data as ResumedSale
     },
 
+    async discard(saleId) {
+      const { error } = await client.rpc('discard_held_sale', { p_sale_id: saleId })
+      if (error) throw error
+    },
+
     async list(query) {
       const limit = clampLimit(query.limit, 25)
       let builder = client

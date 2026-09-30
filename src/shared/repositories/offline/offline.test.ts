@@ -192,6 +192,7 @@ function fakeRepositories(overrides: {
     complete: notWrapped('sales.complete'),
     hold: notWrapped('sales.hold'),
     resume: notWrapped('sales.resume'),
+    discard: notWrapped('sales.discard'),
     list: notWrapped('sales.list'),
     listAll: notWrapped('sales.listAll'),
     detail: notWrapped('sales.detail'),
@@ -906,6 +907,55 @@ describe('the offline repositories', () => {
 
     const resumed = await offline.repositories.sales.resume(id)
     expect(resumed.items[0]?.variant_id).toBe('v-soap')
+  })
+
+  it('discards a local draft by dropping it, with no server call', async () => {
+    const offline = createOfflineRepositories(
+      fakeRepositories({
+        sales: {
+          hold: async () => {
+            throw network()
+          },
+          held: async () => {
+            throw network()
+          },
+          // Must never be reached for a local draft — there is no server row.
+          discard: async () => {
+            throw new Error('the server should not be asked to discard a local draft')
+          },
+        },
+      }),
+      { store, now: time.now, organizationId: () => ORG }
+    )
+
+    const id = await offline.repositories.sales.hold({
+      branchId: 'b-1',
+      customerId: null,
+      items: [{ variant_id: 'v-soap', qty: 1000 }],
+    })
+    expect(isLocalDraft(id)).toBe(true)
+
+    await offline.repositories.sales.discard(id)
+
+    const held = await offline.repositories.sales.held('b-1').catch(() => [])
+    expect(held.map((row) => row.id)).not.toContain(id)
+  })
+
+  it('sends a server-held sale to the discard RPC', async () => {
+    const discarded: string[] = []
+    const offline = createOfflineRepositories(
+      fakeRepositories({
+        sales: {
+          discard: async (saleId: string) => {
+            discarded.push(saleId)
+          },
+        },
+      }),
+      { store, now: time.now, organizationId: () => ORG }
+    )
+
+    await offline.repositories.sales.discard('sale-123')
+    expect(discarded).toEqual(['sale-123'])
   })
 })
 
