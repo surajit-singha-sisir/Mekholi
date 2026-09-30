@@ -372,22 +372,17 @@ async function summaryTile(api: PluginAPI): Promise<HTMLElement> {
 
 // ── The till panel ────────────────────────────────────────────────────────
 
-function tillPanel(api: PluginAPI, context: PanelContext, excluded: Set<string>): HTMLElement {
+function tillPanel(api: PluginAPI, context: PanelContext, excluded: Set<string>): HTMLElement | null {
   const rule = {
     coverAll: api.settings.get<boolean>(COVER_ALL_KEY, DEFAULT_COVER_ALL),
     defaultMonths: api.settings.get<number>(DEFAULT_MONTHS_KEY, DEFAULT_MONTHS),
   }
   const covered = coveredLines(context.lines, rule)
 
-  if (covered.length === 0) {
-    return h(
-      'p',
-      { class: 'text-xs text-content-muted' },
-      context.lines && context.lines.length > 0
-        ? 'Nothing in this cart carries warranty cover.'
-        : 'Add something to the cart to see what it promises.'
-    )
-  }
+  // Nothing in the cart promises anything — an empty cart, or products with no
+  // cover. Say nothing at all: the host draws no card, so the "Current sale"
+  // column stays clear until there is a promise worth showing.
+  if (covered.length === 0) return null
 
   const badgeHost = h('div')
   const drawBadge = (): void => {

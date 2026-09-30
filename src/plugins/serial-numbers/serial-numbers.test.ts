@@ -443,14 +443,14 @@ describe('the till panel', () => {
 
   async function open(lines = cartLine()): Promise<HTMLElement> {
     await registry.sync(['serial-numbers'])
-    return await panel()!.render({
+    return (await panel()!.render({
       organizationId: ORG,
       branchId: BRANCH,
       currency: 'BDT',
       total: 50000,
       customerId: null,
       lines,
-    })
+    }))!
   }
 
   function scanInto(host: HTMLElement, serial: string): void {
@@ -542,14 +542,14 @@ describe('a completed sale', () => {
 
   async function withScan(serial = '356938035643809'): Promise<void> {
     await registry.sync(['serial-numbers'])
-    const host = await registry.posPanels.items[0]!.render({
+    const host = (await registry.posPanels.items[0]!.render({
       organizationId: ORG,
       branchId: BRANCH,
       currency: 'BDT',
       total: 50000,
       customerId: null,
       lines: cartLine(),
-    })
+    }))!
     const box = host.querySelector<HTMLInputElement>('input')!
     box.value = serial
     box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))

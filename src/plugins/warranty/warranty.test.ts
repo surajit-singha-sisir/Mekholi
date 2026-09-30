@@ -527,14 +527,14 @@ describe('the promise a cart will make', () => {
 
   it('hands the till a panel that names the lines and their cover', async () => {
     await registry.sync(['warranty'])
-    const host = await registry.posPanels.items[0]!.render({
+    const host = (await registry.posPanels.items[0]!.render({
       organizationId: ORG,
       branchId: BRANCH,
       currency: 'BDT',
       total: 5500000,
       customerId: null,
       lines: cartLine({ quantity: 2 }),
-    })
+    }))!
 
     expect(textOf(host)).toContain('2 units on 1 line · 2 years')
     expect(textOf(host)).toContain('Fridge 320L')
@@ -543,14 +543,14 @@ describe('the promise a cart will make', () => {
 
   it('lets the cashier untick a line, and it is covered by default', async () => {
     await registry.sync(['warranty'])
-    const host = await registry.posPanels.items[0]!.render({
+    const host = (await registry.posPanels.items[0]!.render({
       organizationId: ORG,
       branchId: BRANCH,
       currency: 'BDT',
       total: 5500000,
       customerId: null,
       lines: cartLine({ quantity: 2 }),
-    })
+    }))!
 
     const boxes = [...host.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[]
     expect(boxes).toHaveLength(1)
@@ -559,7 +559,7 @@ describe('the promise a cart will make', () => {
     expect(boxes[0]!.checked).toBe(true)
   })
 
-  it('says so plainly when the cart promises nothing, and when it is empty', async () => {
+  it('draws no card at all when the cart promises nothing, or is empty', async () => {
     await registry.sync(['warranty'])
     const context = {
       organizationId: ORG,
@@ -569,14 +569,16 @@ describe('the promise a cart will make', () => {
       customerId: null,
     }
 
+    // An empty cart, and a cart of products with no cover, both render null —
+    // the host then shows no warranty card, keeping the sale column clear.
     const bare = await registry.posPanels.items[0]!.render({ ...context, lines: [] })
-    expect(textOf(bare)).toContain('Add something to the cart')
+    expect(bare).toBeNull()
 
     const untagged = await registry.posPanels.items[0]!.render({
       ...context,
       lines: cartLine({ metadata: {} }),
     })
-    expect(textOf(untagged)).toContain('Nothing in this cart carries warranty cover')
+    expect(untagged).toBeNull()
   })
 })
 
@@ -620,14 +622,14 @@ describe('a completed sale', () => {
 
     // The cashier opens the panel and unticks the one covered line.
     const panel = registry.posPanels.items[0]!
-    const host = await panel.render({
+    const host = (await panel.render({
       organizationId: ORG,
       branchId: BRANCH,
       currency: 'BDT',
       total: 5500000,
       customerId: null,
       lines: cartLine(),
-    })
+    }))!
     const box = host.querySelector('input[type="checkbox"]') as HTMLInputElement
     box.checked = false
     box.dispatchEvent(new Event('change'))

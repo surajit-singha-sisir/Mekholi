@@ -314,7 +314,12 @@ export interface PanelDefinition {
   id: string
   label: string
   permission?: string
-  render: (context: PanelContext) => HTMLElement | Promise<HTMLElement>
+  /**
+   * Returning `null` means "nothing to say about this sale" — the host draws
+   * no card at all, rather than an empty titled box. A warranty panel with no
+   * covered line, for instance, stays out of the cashier's way entirely.
+   */
+  render: (context: PanelContext) => HTMLElement | null | Promise<HTMLElement | null>
   /**
    * Honoured on POS panels only. A line the cashier has switched a plugin's
    * cover *off* for should not be described on the slip as if it were on, so a

@@ -257,6 +257,10 @@ export function pluginPanelsHost(registry: PluginRegistry, context: PanelContext
       panels.map(async (panel) => {
         try {
           const body = await panel.render(context)
+          // A panel that returns null has nothing to say about this sale — draw
+          // no card at all rather than an empty titled box (e.g. warranty with
+          // no covered line in the cart).
+          if (body === null) return null
           return h(
             'div',
             { class: 'rounded-lg border border-border bg-surface-muted p-3' },
@@ -274,7 +278,7 @@ export function pluginPanelsHost(registry: PluginRegistry, context: PanelContext
       })
     )
 
-    mount(host, ...rendered)
+    mount(host, ...rendered.filter((card): card is HTMLDivElement => card !== null))
   }
 
   void draw()

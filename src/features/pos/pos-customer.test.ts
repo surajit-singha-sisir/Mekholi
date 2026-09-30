@@ -401,7 +401,7 @@ describe('the customer on the sale', () => {
     await scan(view)
 
     expect(pay().disabled).toBe(false)
-    expect(pay().textContent).toContain('Pay with invoice')
+    expect(pay().textContent).toContain('Pay')
     expect(quick().disabled).toBe(false)
   })
 

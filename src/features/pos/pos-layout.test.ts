@@ -321,7 +321,7 @@ describe('the controls still work', () => {
     const pay = view.querySelector<HTMLButtonElement>('[data-action=pay]')!
 
     expect(pay.disabled).toBe(false)
-    expect(pay.textContent).toContain('Pay with invoice')
+    expect(pay.textContent).toContain('Pay')
   })
 
 })

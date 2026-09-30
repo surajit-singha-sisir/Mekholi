@@ -567,7 +567,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
   // `complete_sale`, and a plugin that lost track of its own quote can be told.
   let appliedAdjustments: AppliedAdjustment[] = []
   const adjustmentsSlot = h('div', { class: 'px-3' })
-  const totalsBox = h('div', { class: 'border-t border-border px-3 py-2.5 space-y-1.5' })
+  const totalsBox = h('div', { class: 'border-t border-border px-3 py-2 space-y-1' })
   // Plugin panels sit between the totals and the pay button: the money is core,
   // and whatever a plugin adds about *this* sale belongs beside it.
   const panelsSlot = h('div', { class: 'px-3 pb-1' })
@@ -601,10 +601,10 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
         ? [totalRow('Discount', (0 - totals.discount) as Minor, 'text-success')]
         : []),
       ...(totals.tax > 0 ? [totalRow('Tax', totals.tax)] : []),
-      h('div', { class: 'flex items-baseline justify-between gap-2 pt-2 border-t border-border' },
+      h('div', { class: 'flex items-baseline justify-between gap-2 pt-1.5 border-t border-border' },
         h('span', { class: 'text-sm font-medium text-content', text: 'Total' }),
         h('span', {
-          class: 'min-w-0 truncate text-2xl font-semibold text-content tabular-nums tracking-tight',
+          class: 'min-w-0 truncate text-xl font-semibold text-content tabular-nums tracking-tight',
           text: formatMoney(totals.total, { currency }),
         })
       )
@@ -644,7 +644,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
     // be filed.
     const missing = missingBeforePayment()
     payButton.disabled = missing !== null || state.busy
-    setPayLabel(missing ?? 'Pay with invoice')
+    setPayLabel(missing ?? 'Pay')
     payButton.title = missing ?? 'Take payment (F2)'
     quickPayButton.disabled = missing !== null || state.busy
     holdButton.disabled = state.cart.lines.length === 0 || state.busy
@@ -748,20 +748,22 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
       customerLine,
       h('div', { class: 'flex items-center gap-2' },
         button('Add Customer', {
-          // `md` (40px), not `sm` (32px): this spans the width of the cart
-          // panel and is the only way to put a customer on the sale, so it is
-          // a thumb target on a phone rather than a dense secondary control.
+          // `md` (40px), never `sm`: this is the only way to attach a customer
+          // and must stay a thumb target on a phone (the mobile audit fails any
+          // control under 40px). It is made *visually* smaller by sizing to its
+          // own content instead of spanning the panel — a compact button, not a
+          // full-width bar — since most counter sales are anonymous.
           size: 'md',
           variant: 'ghost',
           icon: 'person_add',
           ariaLabel: 'Add a customer to this sale',
           title: 'Search the customers this shop already has, or add a new one',
-          class: 'min-w-0 flex-1 justify-start',
+          class: 'min-w-0 shrink-0 justify-start',
           onClick: () =>
             openCustomerDialog({ selected: attachedCustomers, currency, onChange: setCustomers }),
         }),
         h('span', {
-          class: 'shrink-0 text-[11px] text-content-subtle',
+          class: 'ml-auto shrink-0 text-[11px] text-content-subtle',
           // "Anonymous" rather than "optional": the cashier is told what the
           // sale *will* be, not what they are permitted to skip. A till that
           // leaves the question open invites a pause at the counter.
@@ -779,8 +781,8 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
 
   function totalRow(label: string, amount: Minor, extraClass = ''): HTMLElement {
     return h('div', { class: 'flex items-baseline justify-between gap-2' },
-      h('span', { class: 'min-w-0 truncate text-xs text-content-muted', text: label }),
-      h('span', { class: `text-sm text-content tabular-nums ${extraClass}`.trim(), text: formatMoney(amount, { currency }) })
+      h('span', { class: 'min-w-0 truncate text-[11px] text-content-muted', text: label }),
+      h('span', { class: `text-xs text-content tabular-nums ${extraClass}`.trim(), text: formatMoney(amount, { currency }) })
     )
   }
 
@@ -894,9 +896,9 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
 
   // Green, not brand: the one button on this screen that takes money is the
   // one button that must never be confused with the others.
-  const payButton = button('Pay with invoice', {
+  const payButton = button('Pay', {
     variant: 'success',
-    size: 'xl',
+    size: 'lg',
     icon: 'payments',
     fullWidth: true,
     onClick: () => openPayment(),
@@ -917,7 +919,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
    * image or PDF any sale afterwards, which is when the customer usually
    * asks for it anyway.
    */
-  const quickPayButton = button('Pay without invoice', {
+  const quickPayButton = button('Quick Pay', {
     variant: 'outline',
     size: 'lg',
     icon: 'bolt',
@@ -1490,8 +1492,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
       totalsBox,
       panelsSlot,
       h('div', { class: 'border-t border-border p-3 space-y-2' },
-        payButton,
-        quickPayButton,
+        h('div', { class: 'grid grid-cols-2 gap-2' }, payButton, quickPayButton),
         h('div', { class: 'grid grid-cols-2 gap-2' }, holdButton, clearButton)
       ),
       heldSection
