@@ -10,13 +10,29 @@
  * This screen used to be a dead end ("sign out and start again"), which
  * meant an account with no organization could never get one without
  * database surgery.
+ *
+ * Beyond the two required fields it now also captures the preferences a
+ * shopkeeper would otherwise have to hunt for in Settings straight after:
+ * language, currency, time zone, appearance and a logo. Provisioning still
+ * creates the shop; these are written in a best-effort follow-up patch, so a
+ * hiccup saving a preference never blocks the shop from existing.
  */
 
 import { h } from '../../components/ui/h'
 import { button } from '../../components/ui/button'
 import { input, select, field } from '../../components/ui/input'
+import { imagePicker } from '../../components/ui/image-upload'
 import { provisionShop } from '../../app/platform/auth'
 import { bindDrafts, clearDraft } from '../../app/state/drafts'
+import {
+  imageUploadsEnabled,
+  uploadImage,
+  validateImageFile,
+} from '../../app/images'
+import { locale as activeLocale, setLocale, t, LOCALE_NAMES } from '../../shared/i18n'
+import { currencyOptions } from '../../shared/domain/currencies'
+import { deviceTimeZone, timeZoneOptions } from '../../shared/domain/timezones'
+import { setTheme, theme as activeTheme, THEMES, type Theme } from '../../shared/theme'
 import taxonomy from '../../../data/shop_categories.json'
 
 interface ShopType {
@@ -36,22 +52,87 @@ interface ShopGroup {
 
 const GROUPS = (taxonomy as { categories: ShopGroup[] }).categories
 
+/** The default currency for a new shop; Settings can change it later. */
+const DEFAULT_CURRENCY = 'BDT'
+
 export interface OnboardingViewOptions {
   /** Called after the shop exists and the session payload has refreshed. */
   onDone: () => void
 }
 
 export function onboardingView(options: OnboardingViewOptions): HTMLElement {
-  const shopName = input({ id: 'onboard-shop', placeholder: 'Rahim Store', autofocus: true })
+  const shopName = input({ id: 'onboard-shop', placeholder: t('onboarding.shopNamePlaceholder'), autofocus: true })
   const shopType = select({
     id: 'onboard-type',
     options: GROUPS.flatMap((group) =>
       group.children.map((type) => ({ value: type.id, label: `${type.name_bn} · ${type.name}` }))
     ),
-    placeholder: 'Choose what you sell…',
+    placeholder: t('onboarding.shopTypePlaceholder'),
   })
-  const errorSlot = h('p', { class: 'hidden text-sm text-danger', role: 'alert' })
-  const submit = button('Create my shop', { variant: 'primary', fullWidth: true, size: 'lg' })
+
+  // Language applies to this device immediately on change; the choice is also
+  // saved as the shop's default so every device starts in the same language.
+  // Changing it re-renders the whole screen (main.ts listens for the change),
+  // so this view is rebuilt in the new language with the typed name restored
+  // from its draft.
+  const localeSelect = select({
+    value: activeLocale(),
+    options: [
+      { value: 'en', label: LOCALE_NAMES.en },
+      { value: 'bn', label: LOCALE_NAMES.bn },
+    ],
+    onChange: (value) => setLocale(value),
+  })
+
+  // Currency and time zone are chosen, not typed — the database validates the
+  // codes and neither is memorable. The time zone defaults to the device's, so
+  // most shopkeepers never touch it.
+  const currency = select({
+    value: DEFAULT_CURRENCY,
+    options: currencyOptions(DEFAULT_CURRENCY),
+  })
+  const deviceZone = deviceTimeZone()
+  const timezone = select({
+    value: deviceZone,
+    options: timeZoneOptions(deviceZone),
+  })
+
+  // Theme is a device preference, never stored on the server: the counter
+  // tablet and the owner's phone want different answers. Applied on change.
+  const themeSelect = select({
+    value: activeTheme(),
+    options: THEMES.map((name) => ({ value: name, label: t(`theme.${name}`) })),
+    onChange: (value) => setTheme(value as Theme),
+  })
+
+  // The logo uploads to ImgBB and is stored as a URL, exactly like in Settings.
+  // When uploads are switched off (no ImgBB key configured for the build) the
+  // picker renders disabled with a hint rather than silently failing — a logo
+  // is optional and can be added later.
+  const logo = imagePicker({
+    value: null,
+    label: 'Shop logo',
+    previewClass: 'h-20 w-20',
+    validate: (file) => validateImageFile(file),
+    ...(imageUploadsEnabled()
+      ? {
+          upload: async (file, onProgress) => {
+            const uploaded = await uploadImage(file, { name: 'Shop logo', onProgress })
+            return { url: uploaded.url, thumbUrl: uploaded.thumbUrl }
+          },
+        }
+      : { disabledHint: t('settings.shopLogoDisabled') }),
+  })
+
+  shopName.dataset.field = 'name'
+  shopType.dataset.field = 'shopType'
+  localeSelect.dataset.field = 'locale'
+  currency.dataset.field = 'currency'
+  timezone.dataset.field = 'timezone'
+  themeSelect.dataset.field = 'theme'
+
+  const errorSlot = h('p', { class: 'hidden text-sm text-danger', role: 'alert', dataset: { field: 'error' } })
+  const submit = button(t('onboarding.submit'), { variant: 'primary', fullWidth: true, size: 'lg' })
 
   const showError = (message: string): void => {
     errorSlot.textContent = message
@@ -61,19 +142,35 @@ export function onboardingView(options: OnboardingViewOptions): HTMLElement {
   const go = async (): Promise<void> => {
     errorSlot.classList.add('hidden')
     if (!shopName.value.trim()) {
-      showError('Your shop needs a name.')
+      showError(t('onboarding.errorName'))
       return
     }
     if (!shopType.value) {
-      showError('Choose the type of shop you run.')
+      showError(t('onboarding.errorType'))
       return
     }
     submit.disabled = true
-    submit.textContent = 'Setting up your shop…'
+    submit.textContent = t('onboarding.submitting')
+
+    // Upload the logo (if any) before provisioning, so a failed upload is
+    // reported here rather than after the shop already exists.
+    let logoUrl: string | null = null
+    try {
+      logoUrl = await logo.commit()
+    } catch {
+      submit.disabled = false
+      submit.textContent = t('onboarding.submit')
+      showError(t('settings.shopLogoDisabled'))
+      return
+    }
 
     const result = await provisionShop({
       shopName: shopName.value,
       shopType: shopType.value,
+      locale: localeSelect.value,
+      currency: currency.value,
+      timezone: timezone.value,
+      logoUrl,
     })
     if (result.ok) {
       clearDraft('onboarding.shop')
@@ -81,7 +178,7 @@ export function onboardingView(options: OnboardingViewOptions): HTMLElement {
       return
     }
     submit.disabled = false
-    submit.textContent = 'Create my shop'
+    submit.textContent = t('onboarding.submit')
     showError(result.error)
   }
 
@@ -103,21 +200,30 @@ export function onboardingView(options: OnboardingViewOptions): HTMLElement {
     h(
       'div',
       { class: 'rounded-xl border border-border bg-surface p-6 shadow-sm' },
-      h('h1', { class: 'text-xl font-semibold text-content', text: 'Create your shop' }),
+      h('h1', { class: 'text-xl font-semibold text-content', text: t('onboarding.title') }),
       h('p', {
         class: 'mt-1 text-sm text-content-muted',
-        text:
-          'Your account is ready but has no shop yet. This creates your branch, ' +
-          'stock location, register and staff roles in one step.',
+        text: t('onboarding.subtitle'),
       }),
       h(
         'div',
         { class: 'mt-5 space-y-4' },
-        field('Shop name', shopName, { required: true }),
-        field('What do you sell?', shopType, {
+        field(t('settings.shopName'), shopName, { required: true }),
+        field(t('onboarding.shopType'), shopType, {
           required: true,
-          hint: 'This decides which features are recommended for you.',
+          hint: t('onboarding.shopTypeHint'),
         }),
+        h(
+          'div',
+          { class: 'grid gap-4 sm:grid-cols-2' },
+          field(t('settings.language'), localeSelect, { required: true, hint: t('settings.languageHint') }),
+          field(t('settings.currency'), currency, { required: true, hint: t('settings.currencyHint') }),
+          field(t('settings.timezone'), timezone, { required: true, hint: t('settings.timezoneHint') }),
+          field(t('settings.theme'), themeSelect, { hint: t('settings.themeHint') })
+        ),
+        field(t('settings.shopLogo'), logo.root,
+          imageUploadsEnabled() ? {} : { hint: t('settings.shopLogoDisabled') }
+        )
       ),
       errorSlot,
       h('div', { class: 'mt-5' }, submit)

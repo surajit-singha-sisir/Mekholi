@@ -196,6 +196,18 @@ export const en = {
   'settings.noPaymentMethodsHint':
     'Add a method through provisioning or the database before taking payments.',
   'settings.cashDrawer': 'cash drawer',
+
+  'onboarding.title': 'Create your shop',
+  'onboarding.subtitle':
+    'Your account is ready but has no shop yet. This creates your branch, stock location, register and staff roles in one step.',
+  'onboarding.shopNamePlaceholder': 'Rahim Store',
+  'onboarding.shopType': 'What do you sell?',
+  'onboarding.shopTypeHint': 'This decides which features are recommended for you.',
+  'onboarding.shopTypePlaceholder': 'Choose what you sell…',
+  'onboarding.submit': 'Create my shop',
+  'onboarding.submitting': 'Setting up your shop…',
+  'onboarding.errorName': 'Your shop needs a name.',
+  'onboarding.errorType': 'Choose the type of shop you run.',
 } as const
 
 export const bn: Partial<Record<StringKey, string>> = {
@@ -348,6 +360,18 @@ export const bn: Partial<Record<StringKey, string>> = {
   'settings.noPaymentMethods': 'কোনো পেমেন্ট পদ্ধতি নেই',
   'settings.noPaymentMethodsHint': 'পেমেন্ট নেওয়ার আগে ডেটাবেস বা প্রভিশনিং থেকে একটি পদ্ধতি যোগ করুন।',
   'settings.cashDrawer': 'ক্যাশ ড্রয়ার',
+
+  'onboarding.title': 'আপনার দোকান তৈরি করুন',
+  'onboarding.subtitle':
+    'আপনার অ্যাকাউন্ট প্রস্তুত, তবে এখনও কোনো দোকান নেই। এটি এক ধাপেই আপনার শাখা, স্টক লোকেশন, রেজিস্টার ও স্টাফ রোল তৈরি করে।',
+  'onboarding.shopNamePlaceholder': 'রহিম স্টোর',
+  'onboarding.shopType': 'আপনি কী বিক্রি করেন?',
+  'onboarding.shopTypeHint': 'এটি ঠিক করে কোন ফিচারগুলো আপনার জন্য সুপারিশ করা হবে।',
+  'onboarding.shopTypePlaceholder': 'আপনি কী বিক্রি করেন বেছে নিন…',
+  'onboarding.submit': 'আমার দোকান তৈরি করুন',
+  'onboarding.submitting': 'আপনার দোকান সেট আপ হচ্ছে…',
+  'onboarding.errorName': 'আপনার দোকানের একটি নাম প্রয়োজন।',
+  'onboarding.errorType': 'আপনি যে ধরনের দোকান চালান তা বেছে নিন।',
 }
 
 export const DICTIONARIES: Record<Locale, Partial<Record<StringKey, string>>> = { en, bn }

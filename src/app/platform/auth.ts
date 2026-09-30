@@ -10,6 +10,7 @@
  */
 
 import { getSupabase, isConfigured } from './supabase'
+import { getRepositories } from '../data'
 import { buildRedirectUrl } from './auth-url'
 import { translateError } from './errors'
 import { env } from '../env'
@@ -303,6 +304,11 @@ export async function signInWithGoogle(): Promise<void> {
 export interface ProvisionInput {
   shopName: string
   shopType: string
+  /** Optional shop preferences captured during onboarding. */
+  currency?: string
+  timezone?: string
+  locale?: string
+  logoUrl?: string | null
 }
 
 /**
@@ -336,10 +342,52 @@ export async function provisionShop(input: ProvisionInput): Promise<AuthResult> 
 
     // Re-read the session payload so organizations and permissions appear
     // without a page reload; the onboarding guard re-evaluates on navigation.
+    // This also makes the freshly-created shop the active organization, so the
+    // preferences patch below targets the right row.
     await loadSessionPayload()
+
+    // The RPC builds the shop with defaults. Onboarding may also have captured
+    // the shopkeeper's currency, time zone, language and logo — write them in
+    // one patch against the now-active org. It is best-effort: the shop already
+    // exists, so a failed preference save must not undo a successful signup.
+    // The owner can still change any of these in Settings.
+    await savePreferences(input)
     return { ok: true }
   } catch (error) {
     return fail(error)
+  }
+}
+
+/**
+ * Persist the optional shop preferences captured during onboarding.
+ *
+ * Runs after provisioning and after the session payload has refreshed, so the
+ * newly created shop is the active organization and `updateSettings` patches
+ * the right row. Best-effort by design: the shop already exists, and losing a
+ * currency choice must never look like a failed signup — the owner can adjust
+ * every one of these in Settings.
+ */
+async function savePreferences(input: ProvisionInput): Promise<void> {
+  const patch: {
+    currency?: string
+    timezone?: string
+    locale?: string
+    logoUrl?: string | null
+  } = {}
+  if (input.currency) patch.currency = input.currency.trim().toUpperCase()
+  if (input.timezone) patch.timezone = input.timezone.trim()
+  if (input.locale) patch.locale = input.locale
+  if (input.logoUrl) patch.logoUrl = input.logoUrl
+  if (Object.keys(patch).length === 0) return
+
+  try {
+    await getRepositories().organization.updateSettings(patch)
+    // Re-read so the shell picks up the shop's currency, language and logo
+    // without a reload.
+    await loadSessionPayload()
+  } catch (error) {
+    // Non-fatal: keep the successful signup. Surface it for diagnostics only.
+    console.warn('[onboarding] could not save shop preferences', error)
   }
 }
 
