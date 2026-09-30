@@ -104,6 +104,11 @@ export const en = {
     'Everything — sales, stock, purchases, reports — will reload for {name}. Any unsaved work on this screen will be lost.',
   'branch.confirmAction': 'Switch branch',
 
+  // ── App update (PWA) ────────────────────────────────────────────────────
+  'pwa.updateReady.title': 'Update available',
+  'pwa.updateReady.body': 'A new version of Mekholi is ready. Reload to get the latest.',
+  'pwa.updateReady.action': 'Reload',
+
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'Save',
   'common.cancel': 'Cancel',
@@ -251,6 +256,11 @@ export const bn: Partial<Record<StringKey, string>> = {
   'branch.confirmBody':
     'সব কিছু — বিক্রি, স্টক, ক্রয়, রিপোর্ট — {name} শাখার জন্য আবার লোড হবে। এই পাতার অসংরক্ষিত কাজ হারিয়ে যাবে।',
   'branch.confirmAction': 'শাখা বদলান',
+
+  // ── App update (PWA) ────────────────────────────────────────────────────
+  'pwa.updateReady.title': 'আপডেট পাওয়া গেছে',
+  'pwa.updateReady.body': 'মেখলির নতুন সংস্করণ প্রস্তুত। সর্বশেষ পেতে রিলোড করুন।',
+  'pwa.updateReady.action': 'রিলোড',
 
   // ── Common ─────────────────────────────────────────────────────────────
   'common.save': 'সংরক্ষণ',
