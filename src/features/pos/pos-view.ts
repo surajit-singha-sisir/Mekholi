@@ -1346,7 +1346,17 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
     }
   }
 
-  const heldList = h('div', { class: 'space-y-1 px-3 pb-3 max-h-48 overflow-y-auto' })
+  // A floating drawer, not an inline block. On a desktop the cart rail is
+  // `overflow-hidden`, so a list that grew in the flow was clipped at the
+  // bottom and its own scrollbar could not be reached — "show all" showed
+  // everything and none of it scrolled. Lifted out of the flow (absolute,
+  // above the toggle) it keeps its own bounded height and scrolls cleanly,
+  // however many sales are parked, without stealing height from the cart.
+  const heldList = h('div', {
+    class:
+      'absolute inset-x-0 bottom-full z-20 max-h-[min(60vh,20rem)] space-y-1 overflow-y-auto ' +
+      'border-t border-border bg-surface px-3 pb-3 pt-2 shadow-[0_-10px_28px_-12px_rgba(0,0,0,0.35)]',
+  })
 
   /**
    * Held sales are a drawer, not a permanent block.
@@ -1368,7 +1378,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
   const heldCount = h('span', { class: 'ml-auto tabular-nums', text: '0' })
   heldToggle.append(icon('pause_circle', 'text-base'), h('span', { text: 'Held sales' }), heldCount, heldChevron)
 
-  const heldSection = h('div', { class: 'hidden' }, heldToggle, heldList)
+  const heldSection = h('div', { class: 'relative hidden' }, heldToggle, heldList)
   heldList.classList.add('hidden')
 
   heldToggle.addEventListener('click', () => {
@@ -1454,6 +1464,108 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
 
   const busyIndicator = h('div', { class: 'hidden items-center gap-2 px-3 py-1 text-xs text-content-muted' })
 
+  // The cart is a fixed rail beside the catalogue on a desktop, and simply
+  // the next thing down the page on a phone — a counter is as often a phone
+  // in portrait as it is a widescreen till, and a 360px rail squeezed into a
+  // 390px viewport is neither.
+  const cartAside = h('aside', {
+    class:
+      'flex w-full flex-col border-t border-border bg-surface ' +
+      'lg:h-full lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:overflow-hidden ' +
+      'lg:border-l lg:border-t-0 xl:w-[420px]',
+  },
+    h('div', { class: 'flex items-center gap-2 border-b border-border px-3 py-2' },
+      h('p', { class: 'text-sm font-semibold text-content', text: 'Current sale' }),
+      lineCountBadge,
+      h('div', { class: 'ml-auto' }, heldBadge)
+    ),
+    busyIndicator,
+    customerLine,
+    lineList,
+    // Money off sits directly above the totals it changes, and above the
+    // plugin panels that describe the sale.
+    adjustmentsSlot,
+    totalsBox,
+    panelsSlot,
+    h('div', { class: 'border-t border-border p-3 space-y-2' },
+      h('div', { class: 'grid grid-cols-2 gap-2' }, payButton, quickPayButton),
+      h('div', { class: 'grid grid-cols-2 gap-2' }, holdButton, clearButton)
+    ),
+    heldSection
+  )
+
+  // ── Drag the rail wider or narrower ───────────────────────────────────────
+  //
+  // A shop with a wide screen wants the cart big and the catalogue small; a
+  // 13" laptop wants the opposite. The chosen width is remembered per browser,
+  // and reset to the default on a double-click. Desktop only: below `lg` the
+  // rail is full-width and stacks, so there is nothing to drag.
+  const cartResizeHandle = h('div', {
+    class:
+      'group hidden lg:flex lg:w-1.5 lg:shrink-0 lg:cursor-col-resize lg:items-center lg:justify-center ' +
+      'lg:self-stretch lg:touch-none lg:bg-border lg:transition-colors hover:lg:bg-primary/50',
+    title: 'Drag to resize the sale panel · double-click to reset',
+    role: 'separator',
+    'aria-orientation': 'vertical',
+  })
+
+  const CART_WIDTH_KEY = 'mekholi.pos.cartWidth'
+  const CART_MIN = 320
+  const CART_MAX = 720
+  const readStoredWidth = (): number => {
+    const raw = Number(localStorage.getItem(CART_WIDTH_KEY))
+    return Number.isFinite(raw) && raw >= CART_MIN && raw <= CART_MAX ? raw : 0
+  }
+  let cartWidth = readStoredWidth()
+  const applyCartWidth = (): void => {
+    // Inline width wins on a desktop; cleared below `lg` so the `w-full` class
+    // takes over and the rail goes back to stacking.
+    cartAside.style.width = cartWidth && window.innerWidth >= 1024 ? `${cartWidth}px` : ''
+  }
+
+  let cartDragging = false
+  cartResizeHandle.addEventListener('pointerdown', (event) => {
+    if (window.innerWidth < 1024) return
+    cartDragging = true
+    try {
+      cartResizeHandle.setPointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture is a nicety, not a requirement.
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    event.preventDefault()
+  })
+  cartResizeHandle.addEventListener('pointermove', (event) => {
+    if (!cartDragging) return
+    // The rail hugs the right edge, so its width is the gap from the pointer to
+    // the window's right side.
+    const next = Math.round(window.innerWidth - event.clientX)
+    cartWidth = Math.min(CART_MAX, Math.max(CART_MIN, next))
+    cartAside.style.width = `${cartWidth}px`
+  })
+  const endCartDrag = (event: PointerEvent): void => {
+    if (!cartDragging) return
+    cartDragging = false
+    try {
+      cartResizeHandle.releasePointerCapture(event.pointerId)
+    } catch {
+      // Already released, or never captured.
+    }
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    localStorage.setItem(CART_WIDTH_KEY, String(cartWidth))
+  }
+  cartResizeHandle.addEventListener('pointerup', endCartDrag)
+  cartResizeHandle.addEventListener('pointercancel', endCartDrag)
+  cartResizeHandle.addEventListener('dblclick', () => {
+    cartWidth = 0
+    localStorage.removeItem(CART_WIDTH_KEY)
+    applyCartWidth()
+  })
+  const onWindowResize = (): void => applyCartWidth()
+  window.addEventListener('resize', onWindowResize)
+
   root.append(
     h('section', { class: 'flex min-w-0 flex-col lg:min-h-0 lg:flex-1 lg:overflow-hidden' },
       // The search field is the till's front door and stays put while the grid
@@ -1468,36 +1580,11 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
         text: 'Enter add · ↑↓ choose · F2 pay · F4 hold · F8 clear',
       })
     ),
-    // The cart is a fixed rail beside the catalogue on a desktop, and simply
-    // the next thing down the page on a phone — a counter is as often a phone
-    // in portrait as it is a widescreen till, and a 360px rail squeezed into a
-    // 390px viewport is neither.
-    h('aside', {
-      class:
-        'flex w-full flex-col border-t border-border bg-surface ' +
-        'lg:h-full lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:overflow-hidden ' +
-        'lg:border-l lg:border-t-0 xl:w-[420px]',
-    },
-      h('div', { class: 'flex items-center gap-2 border-b border-border px-3 py-2' },
-        h('p', { class: 'text-sm font-semibold text-content', text: 'Current sale' }),
-        lineCountBadge,
-        h('div', { class: 'ml-auto' }, heldBadge)
-      ),
-      busyIndicator,
-      customerLine,
-      lineList,
-      // Money off sits directly above the totals it changes, and above the
-      // plugin panels that describe the sale.
-      adjustmentsSlot,
-      totalsBox,
-      panelsSlot,
-      h('div', { class: 'border-t border-border p-3 space-y-2' },
-        h('div', { class: 'grid grid-cols-2 gap-2' }, payButton, quickPayButton),
-        h('div', { class: 'grid grid-cols-2 gap-2' }, holdButton, clearButton)
-      ),
-      heldSection
-    )
+    cartResizeHandle,
+    cartAside
   )
+
+  applyCartWidth()
 
   // Initial load. The grid is populated before the first paint of results so
   // the cashier sees something immediately rather than an empty pane.
@@ -1555,6 +1642,7 @@ function posScreen(options: PosViewOptions, floor: SalesFloor): HTMLElement {
     if (!root.isConnected) {
       observer.disconnect()
       document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('resize', onWindowResize)
       stopScanner()
       unsubscribeCart()
       if (searchTimer) clearTimeout(searchTimer)
