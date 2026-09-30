@@ -346,8 +346,10 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
     }
 
     function updateTotal(): void {
-      const total = lines.reduce((sum, line) => sum + minorToNumber(lineTotalOf(line)), 0)
-      totalSlot.textContent = formatMoney(toMinor(total), { currency })
+      // lineTotalOf already returns minor units — sum them as minor, not as
+      // descaled floats, or the running total drops by a factor of 100.
+      const total = lines.reduce((sum, line) => sum + lineTotalOf(line), 0)
+      totalSlot.textContent = formatMoney(minor(total), { currency })
     }
 
     async function addLine(): Promise<void> {
@@ -616,7 +618,10 @@ export function purchasesView(options: PurchasesViewOptions = {}): HTMLElement {
         const qty = parseMilli(entry.qtyInput.value, { decimal: true })
         const cost = parseMinor(entry.costInput.value)
         if (qty === null || cost === null) continue
-        value += minorToNumber(cost) * milliToNumber(qty)
+        // cost is already minor units; multiply by the quantity in whole units
+        // so the running value stays in minor units (descaling cost first made
+        // the total 100× too small).
+        value += cost * milliToNumber(qty)
         units += milliToNumber(qty)
       }
       summarySlot.textContent = `${units} unit${units === 1 ? '' : 's'} coming in for ${formatMoney(toMinor(value), { currency })}`
@@ -935,6 +940,9 @@ function toneFor(status: PurchaseRow['status']): 'success' | 'warning' | 'neutra
   return 'neutral'
 }
 
-function lineTotalOf(line: DraftLine): Minor {
-  return toMinor(minorToNumber(line.unitCost) * milliToNumber(line.qty))
+export function lineTotalOf(line: DraftLine): Minor {
+  // unitCost is already minor units; multiply by the quantity in whole units.
+  // Descaling the cost with minorToNumber first made the line total 100× too
+  // small (10 × ₹2,450.00 previewed as ₹245.00).
+  return toMinor(line.unitCost * milliToNumber(line.qty))
 }

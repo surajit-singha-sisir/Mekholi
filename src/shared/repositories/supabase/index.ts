@@ -2616,7 +2616,10 @@ function toPurchase(row: PurchaseRaw): PurchaseRow {
     taxTotal: toMinor(row.tax_total),
     total,
     paidTotal,
-    outstanding: minor(minorToNumber(total) - minorToNumber(paidTotal)),
+    // total and paidTotal are already minor units — subtract them directly.
+    // Passing them through minorToNumber first descaled the result by 100
+    // (₹24,500.00 showed as ₹245.00 due on the purchase order).
+    outstanding: minor(total - paidTotal),
     note: row.note,
     expectedAt: asDate(row.expected_at),
     createdAt: row.created_at,
@@ -2724,7 +2727,10 @@ function createPurchases(client: SupabaseClient): PurchaseRepository {
             quantity,
             receivedQty,
             // What is still to come — the number the receiving dialog defaults to.
-            outstanding: milli(milliToNumber(quantity) - milliToNumber(receivedQty)),
+            // quantity and receivedQty are already milli units; subtract them
+            // directly. milliToNumber first descaled it by 1000 (10 units of 10
+            // outstanding prefilled the receive dialog as 0.01).
+            outstanding: milli(quantity - receivedQty),
             unitCost: toMinor(item.unit_cost),
             lineTotal: toMinor(item.line_total),
           }
