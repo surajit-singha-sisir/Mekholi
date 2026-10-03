@@ -83,7 +83,7 @@ jobs:
             echo "- **Rollback:** re-run this workflow via *Run workflow* on the last good commit."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
