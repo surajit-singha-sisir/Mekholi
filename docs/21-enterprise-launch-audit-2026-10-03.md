@@ -203,6 +203,10 @@ There is also **no `window.onerror`, no `unhandledrejection` handler, and no err
 
 **Effort** — Half a day. **Lowest-effort P0 here.**
 
+> ✅ **Code fixed 3 Oct 2026.** `deploy-pages.yml` now triggers on `workflow_run` of **CI**, `types: [completed]`, and the build job refuses to run unless `github.event.workflow_run.conclusion == 'success'`. Checkout is pinned to `github.event.workflow_run.head_sha` so what ships is the exact commit CI approved, not whatever `main` has drifted to. A job-summary step records the deployed SHA for rollback.
+>
+> ⚠️ **Still open — requires a repository setting, not code.** Enable branch protection on `main` requiring the CI status check, or a direct push still reaches production by passing CI on its own commit. **F-06 is not closed until that toggle is on.**
+
 ---
 
 #### F-07 · P0 · No merchant data export, deletion, or retention capability.
@@ -280,15 +284,33 @@ There is also **no `window.onerror`, no `unhandledrejection` handler, and no err
 
 ---
 
-#### F-12 · P1 · Seven dependency advisories, up from two at the last audit, with no automated supply-chain gate.
+#### F-12 · P1 · Seven dependency advisories and no automated supply-chain gate — but no non-breaking fix exists.
 
-**Evidence** — `npm audit`: **6 high, 1 moderate** — `vite` (path traversal in optimized deps), `esbuild` (dev server accepts cross-origin requests), `braces` → `micromatch` → `fast-glob` → `chokidar` → `tailwindcss` (stack-exhaustion DoS). All build/dev-time; the only runtime dependency is `@supabase/supabase-js`, which is clean. No `dependabot.yml`, no `npm audit` step in CI, no secret scanning (`gitleaks`/`trufflehog`), no CodeQL, no `SECURITY.md`.
+> **Corrected 3 Oct 2026 (same day).** The first version of this finding recommended "upgrade Vite to ≥ 5.4.20 / 7.x and Tailwind to a patched release, 1 day." That was wrong, and the correction matters because the original advice would have sent someone into a major-version migration weeks before a pilot. Verified detail below.
 
-**Impact** — Low direct runtime exposure, but: the trend is the wrong way (2 → 7 in four days of drift), a compromised build toolchain injects code into every merchant's bundle, and "we have 6 high advisories and no scanning" fails procurement review regardless of exploitability.
+**Evidence** — `npm audit`: **6 high, 1 moderate**. Crucially, `npm audit --omit=dev` reports **`found 0 vulnerabilities`** — the only runtime dependency is `@supabase/supabase-js@2.109.0` and it is clean. Nothing vulnerable reaches a merchant's browser.
 
-**Fix** — Upgrade Vite to ≥ 5.4.20 / 7.x and Tailwind to a patched release; add `npm audit --audit-level=high` as a CI gate; enable Dependabot + CodeQL + secret scanning; add `SECURITY.md` with a disclosure contact and `LICENSE`.
+All seven collapse to **two root causes, and neither has a non-breaking fix**:
 
-**Effort** — 1 day.
+| Advisory | Range | Reality |
+|---|---|---|
+| `braces` → `micromatch` → `fast-glob` → `chokidar` → `tailwindcss` | `braces <=3.0.3` | **3.0.3 is the latest published release.** No patched version exists. npm's only offered fix is `tailwindcss@4.3.3` — a major upgrade and a CSS-first config rewrite |
+| `vite` (3 advisories) + `esbuild` (pinned by Vite 5) | `vite <=6.4.2` | Already on `vite@5.4.21`, the current v5. Fix is `vite@8.3.2` — major. Two of the three are **Windows-only dev-server** issues; CI is Ubuntu |
+
+Also absent: no `dependabot.yml`, no `npm audit` in CI, no secret scanning, no CodeQL, no `SECURITY.md`, no `LICENSE` (on a **public** repository).
+
+**Impact** — Direct runtime exposure is **nil**. The real exposures are (a) a compromised build toolchain injecting code into every merchant's bundle, and (b) procurement: "7 advisories, no scanning, no disclosure policy" fails review on paperwork grounds regardless of exploitability. The absence of any gate is a larger problem than these specific advisories, because nothing would catch a genuinely dangerous package entering `dependencies`.
+
+**Fix** — Gate on what ships, report the rest:
+1. `npm audit --omit=dev --audit-level=high` as a **required** CI step — currently passes, so it is a tripwire for the first vulnerable runtime dependency.
+2. `npm audit` unguarded as a **report-only** step, with the exceptions documented inline and revisited whenever the list changes.
+3. Dependabot configured so Tailwind 4 and Vite 8 arrive as reviewable PRs and get scheduled deliberately.
+4. `SECURITY.md` with private disclosure via GitHub Security Advisories; `LICENSE`; `CODEOWNERS` on migrations, auth, repositories, CI, and receipt/VAT output.
+5. Enable GitHub secret scanning + push protection — this repo has already had one PAT auto-revoked after exposure (F-28).
+
+**Do not** rush Tailwind 4 / Vite 8 before the pilot. Schedule them as their own tracked work with a full regression pass.
+
+**Effort** — Gate + Dependabot + governance files: half a day *(implemented 3 Oct, commit below)*. Major upgrades: 3–5 days, scheduled separately.
 
 ---
 
@@ -363,6 +385,10 @@ No SSO (SAML/OIDC), no SCIM provisioning, no IP allowlisting, no session policy,
 #### F-18 · P2 · Accessibility is unevidenced and thin.
 
 Across 299 files: 40 `aria-label`, 5 `aria-live`, 8 `aria-expanded`, 2 `aria-modal`, **0 `aria-describedby`** (so form errors are not programmatically associated with inputs), and **0 `prefers-reduced-motion` handling**. `index.html` sets `user-scalable=no, maximum-scale=1.0`, which **blocks pinch-zoom — a direct WCAG 1.4.4 failure** and a real problem for presbyopic shop owners reading small totals. No axe automation, no keyboard matrix, no screen-reader pass, no contrast report.
+
+> ✅ **F-18a fixed 3 Oct 2026.** The viewport is now `width=device-width, initial-scale=1.0, viewport-fit=cover` — the zoom lock is gone. Worth noting the lock was always half-fiction: iOS Safari has ignored `user-scalable=no` since iOS 10, so every iPhone could already pinch this app. Removing it makes Android match iOS rather than exposing untested behaviour. If zoom breaks a sticky element, fix the CSS; do not re-lock the viewport.
+>
+> The rest of F-18 — `aria-describedby` on form errors, `prefers-reduced-motion`, axe automation, keyboard matrix, screen-reader and contrast testing — remains open.
 
 #### F-19 · P2 · No rate limiting or abuse controls on any RPC.
 

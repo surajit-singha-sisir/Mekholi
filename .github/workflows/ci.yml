@@ -18,6 +18,34 @@ jobs:
 
       - run: npm ci
 
+      # ── Supply chain (audit F-12) ─────────────────────────────────────
+      # The gate is on *runtime* dependencies, because those are the only
+      # ones that reach a merchant's browser. Today that is exactly one
+      # package (@supabase/supabase-js) and it is clean, so this step is a
+      # tripwire: it fails the moment a vulnerable package enters the
+      # shipped bundle.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Dev/build tooling is reported but does not fail the build, because
+      # the current advisories have no non-breaking fix:
+      #
+      #   braces <=3.0.3    GHSA-vfj7-8cjw-p6xm — 3.0.3 IS the latest release;
+      #                     no patched version exists. Reaches us only through
+      #                     tailwindcss@3 → chokidar@3. Clearing it requires
+      #                     Tailwind 4, which is a CSS-first config rewrite.
+      #   vite <=6.4.2      Path traversal in `.map`; two further advisories
+      #                     are Windows-only dev-server issues and CI is
+      #                     Ubuntu. Fix is vite@8 — a major upgrade.
+      #   esbuild <=0.24.2  Dev-server CORS. Pinned by vite@5.
+      #
+      # None execute in CI's build path or ship to users. Dependabot (see
+      # .github/dependabot.yml) raises the major upgrades as reviewable PRs
+      # so they are scheduled deliberately rather than rushed before a pilot.
+      # Revisit this exception whenever the list above changes.
+      - name: Audit all dependencies (report only)
+        run: npm audit || true
+
       # Strict TypeScript, no `any` (spec §59).
       - name: Typecheck
         run: npm run typecheck

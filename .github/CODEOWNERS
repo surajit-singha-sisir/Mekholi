@@ -1,0 +1,37 @@
+# Code owners (audit F-25).
+#
+# NOTE: CODEOWNERS only does anything once branch protection on `main`
+# requires a pull request *and* review from code owners. Without that, this
+# file is documentation. Enabling that protection is part of audit F-06.
+#
+# Order matters: the last matching pattern wins.
+
+# Default owner for everything.
+*                               @surajit-singha-sisir @sisir-sinha
+
+# ── Security-sensitive surfaces ───────────────────────────────────────────
+# These decide who can read whose money. Changes here deserve a second pair
+# of eyes even when the author is confident, because the failure mode is
+# silent: a broken RLS policy does not throw, it just returns more rows.
+
+/supabase/migrations/           @surajit-singha-sisir
+/src/app/platform/auth.ts       @surajit-singha-sisir
+/src/shared/repositories/       @surajit-singha-sisir
+/src/developer/                 @surajit-singha-sisir
+
+# ── Release and supply chain ──────────────────────────────────────────────
+# A change here can ship untested code to every till, or pull a new package
+# into the bundle. Treat CI config as production configuration.
+
+/.github/                       @surajit-singha-sisir
+/package.json                   @surajit-singha-sisir
+/package-lock.json              @surajit-singha-sisir
+/vite.config.ts                 @surajit-singha-sisir
+
+# ── Compliance-visible output ─────────────────────────────────────────────
+# Receipt and VAT rendering is what a tax authority or an auditor actually
+# sees. Keep it reviewed.
+
+/src/shared/receipt/            @surajit-singha-sisir
+/src/plugins/bd-vat/            @surajit-singha-sisir
+/contracts/                     @surajit-singha-sisir

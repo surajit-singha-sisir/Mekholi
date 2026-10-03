@@ -1,0 +1,49 @@
+# Dependency update automation (audit F-12).
+#
+# The point here is not to auto-merge everything. It is to make the two
+# upgrades that currently sit behind every open advisory — Tailwind 3 → 4 and
+# Vite 5 → 8 — arrive as reviewable pull requests on a schedule, instead of
+# being discovered by an auditor months later.
+#
+# Patch and minor updates are grouped so routine churn is one PR a week.
+# Majors are raised individually, because each one needs a human decision:
+# Tailwind 4 is a CSS-first config rewrite, and Vite 8 changes the minimum
+# Node version. Neither belongs in an unattended merge.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '03:00'
+      timezone: Asia/Dhaka
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    labels: [dependencies]
+    groups:
+      # Routine, low-risk churn in one PR.
+      dev-tooling-minor:
+        dependency-type: development
+        update-types: [minor, patch]
+      production-minor:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # Majors still arrive as their own PRs — this only keeps them out of
+      # the grouped PRs above. Remove nothing here; grouping is the control.
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
+
+  # Pinned action versions age badly and are a real supply-chain surface:
+  # a compromised action runs with the deploy workflow's permissions.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(ci)'
+    labels: [dependencies, ci]

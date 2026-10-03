@@ -1,0 +1,47 @@
+Copyright (c) 2026 Mekholi. All rights reserved.
+
+PROPRIETARY SOFTWARE — ALL RIGHTS RESERVED
+
+This repository and its contents (the "Software") are proprietary and
+confidential. No licence, express or implied, is granted to any person to
+use, copy, modify, merge, publish, distribute, sublicense, sell, or create
+derivative works of the Software, except with the prior written permission of
+the copyright holder.
+
+The source is published for transparency, security review, and evaluation.
+Publication does not place the Software in the public domain and does not
+grant any licence beyond those rights GitHub's Terms of Service necessarily
+confer on repository visitors (namely viewing and forking within GitHub).
+
+Permission IS granted, without prior arrangement, to:
+
+  - read the source and report security vulnerabilities in accordance with
+    SECURITY.md;
+  - quote short excerpts for the purpose of such a report, or for commentary,
+    review, or academic discussion, with attribution.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+--------------------------------------------------------------------------
+PLACEHOLDER — CONFIRM BEFORE LAUNCH
+
+This file was added by the F-25 remediation to close the "no LICENSE" gap on
+a PUBLIC repository, where the absence of a licence leaves the terms of use
+ambiguous. Proprietary / all-rights-reserved is the conservative default: it
+preserves every option, including later relicensing under open-source terms.
+
+Choosing a licence is a business decision, not an engineering one. Confirm
+with the copyright holder, and have counsel review alongside the Terms and
+Privacy Policy required by audit finding F-07. If Mekholi is intended to be
+open source, replace this file entirely — do not amend it.
+
+Note also that this repository is currently PUBLIC. The database schema, RLS
+policies, and RPC definitions are therefore world-readable. That is defensible
+(the security model does not depend on secrecy), but it must be deliberate,
+and it means any credential ever committed is public the instant it lands.
+--------------------------------------------------------------------------

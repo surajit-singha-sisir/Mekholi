@@ -3,15 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <!--
-      Lock the viewport at 1× and disable pinch-zoom. This app is an
-      installable POS shell, not a scrollable document — zoom only ever left
-      the sticky header and cart misaligned. `user-scalable=no` +
-      `maximum-scale=1.0` stops the pinch gesture on both iOS and Android.
+      Pinch-zoom stays enabled (audit F-18a). This previously carried
+      `maximum-scale=1.0, user-scalable=no` to stop zoom from misaligning the
+      sticky header and cart. That is a WCAG 2.2 failure under 1.4.4 (Resize
+      Text), and a real problem for a shop owner who needs to read a total.
+
+      It was also only ever half-true: iOS Safari has ignored `user-scalable=no`
+      since iOS 10, so every iPhone has always been able to pinch this app. The
+      layout concern is therefore already exercised in the field; removing the
+      lock makes Android behave like iOS rather than introducing something new.
+
+      If zoom does break a sticky element, fix it in CSS — do not re-lock the
+      viewport.
     -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="Mekholi — a universal retail POS platform with a plugin architecture." />
     <!--

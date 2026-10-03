@@ -1,4 +1,4 @@
-# Deploys the production build to GitHub Pages on every push to main.
+# Deploys the production build to GitHub Pages — but only after CI has passed.
 #
 # Pages is configured as build_type "workflow" on this repo, so the upload +
 # deploy actions below are what actually publish the site. The Supabase
@@ -6,11 +6,25 @@
 # *publishable* key (public by design, with RLS protecting the data), and
 # VITE_-prefixed values end up in the browser bundle either way (spec §44 —
 # the service-role key must never appear in frontend code).
+#
+# ── Why `workflow_run` and not `push` (audit F-06) ────────────────────────
+# This used to trigger on `push: main`, in parallel with CI and with no
+# dependency on it. A failing typecheck, a broken test, or a red migration
+# replay would publish to every merchant's till anyway — and because the
+# service worker caches the app shell, a bad deploy is slow to undo.
+#
+# Triggering on the *completion* of CI, and refusing to run unless its
+# conclusion was `success`, makes the test suite an actual gate rather than a
+# parallel opinion. Pair this with branch protection on `main` requiring the
+# CI check, so the gate cannot be walked around by pushing directly.
 name: Deploy to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
     branches: [main]
+  # Manual escape hatch for re-publishing a known-good commit (e.g. rollback).
   workflow_dispatch:
 
 permissions:
@@ -26,8 +40,18 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The gate. `workflow_run` fires on *completion*, success or failure, so
+    # the conclusion has to be checked explicitly or the gate does nothing.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch'
+          || github.event.workflow_run.conclusion == 'success' }}
     steps:
+      # `workflow_run` checks out the default branch HEAD by default, which is
+      # not necessarily the commit CI just approved. Pin to the exact SHA that
+      # passed, so what ships is what was tested.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -44,6 +68,20 @@ jobs:
           VITE_APP_ENV: ${{ vars.VITE_APP_ENV }}
           VITE_APP_NAME: ${{ vars.VITE_APP_NAME }}
           VITE_IMGBB_API_KEY: ${{ vars.VITE_IMGBB_API_KEY }}
+
+      # Traceability for rollback: the job summary records exactly which
+      # commit is live, so reverting is "re-run this workflow at <sha>"
+      # rather than an archaeology exercise.
+      - name: Record deployed revision
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          {
+            echo "### Deploying \`${SHA:0:7}\`"
+            echo ""
+            echo "- **Commit:** \`$SHA\`"
+            echo "- **Gated by CI run:** ${{ github.event.workflow_run.html_url || 'manual dispatch' }}"
+            echo "- **Rollback:** re-run this workflow via *Run workflow* on the last good commit."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-pages-artifact@v3
         with:
