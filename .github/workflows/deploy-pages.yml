@@ -49,7 +49,7 @@ jobs:
       # `workflow_run` checks out the default branch HEAD by default, which is
       # not necessarily the commit CI just approved. Pin to the exact SHA that
       # passed, so what ships is what was tested.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
