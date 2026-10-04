@@ -25,18 +25,21 @@ updates:
       prefix-development: 'chore(deps-dev)'
     labels: [dependencies]
     groups:
-      # Routine, low-risk churn in one PR.
+      # Routine, low-risk churn in one PR. Because each group is restricted
+      # to minor+patch, majors do not match any group and Dependabot raises
+      # them as individual PRs automatically — which is what we want.
+      #
+      # NOTE: do NOT add `ignore: dependency-name: '*' / semver-major` here.
+      # `ignore` suppresses the update entirely, it does not merely exclude
+      # it from a group. The first version of this file did exactly that and
+      # would have silently prevented the Tailwind 4 and Vite 8 PRs that
+      # audit F-12 depends on from ever being raised.
       dev-tooling-minor:
         dependency-type: development
         update-types: [minor, patch]
       production-minor:
         dependency-type: production
         update-types: [minor, patch]
-    ignore:
-      # Majors still arrive as their own PRs — this only keeps them out of
-      # the grouped PRs above. Remove nothing here; grouping is the control.
-      - dependency-name: '*'
-        update-types: [version-update:semver-major]
 
   # Pinned action versions age badly and are a real supply-chain surface:
   # a compromised action runs with the deploy workflow's permissions.

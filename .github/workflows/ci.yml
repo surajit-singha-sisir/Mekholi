@@ -13,7 +13,13 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # Node 22, not 20: @supabase/supabase-js >= 2.110 declares
+          # `engines: { node: ">=22.0.0" }`. On Node 20 every install logs
+          # EBADENGINE for the whole @supabase/* tree. Those are warnings
+          # today, but building the shipped client on an engine its author
+          # does not support is not a position to defend — and it becomes a
+          # hard failure the moment anything sets engine-strict.
+          node-version: 22
           cache: npm
 
       - run: npm ci
